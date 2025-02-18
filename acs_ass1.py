@@ -15,6 +15,7 @@ import logging
 import time
 import random
 import sys
+import requests
 
 
 
@@ -28,7 +29,14 @@ def create_ec2_instance():
 def create_s3_bucket():
     pass
 
+def get_image():
+    
+    img = requests.get("https://setuacsresources.s3-eu-west-1.amazonaws.com/image.jpeg")
+    
+    with open("image_SETU_ACS.jpeg", "wb") as f:
+        f.write(img.content)
 
+    pass
 
 
 
@@ -37,6 +45,7 @@ def create_s3_bucket():
 def main():
     create_ec2_instance()
     create_s3_bucket()
+    get_image()
     pass
 
 
