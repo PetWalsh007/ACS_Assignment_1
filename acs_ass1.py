@@ -99,7 +99,7 @@ def create_ec2_instance():
     instance_ip_addr = instance[0].public_ip_address
     console_logging('info', f"Instance ID: {instance[0].id}")
     console_logging('info', f"Instance IP Address: {instance_ip_addr}")
-    console_logging('info', f"Instance State: {instance[0].state}")
+    console_logging('info', f"Instance State: {instance[0].state['Name']}")
     console_logging('info', f"Instance is now available at http://{instance_ip_addr}")
     pass
 
@@ -121,7 +121,7 @@ def create_s3_bucket():
     # Removed public access block to allow public access to the bucket
     console_logging('info', f"Removing public access block from {bucket_name_s3}")
     try:
-        s3_client.delete_public_access_block(Bucket=bucket_name_s3)
+        s3_client.delete_public_access_block(Bucket=bucket_name_s3) # need to use s3 client to remove public access block 
     except Exception as error:
         console_logging('error', f"Error while removing public access block: {error}")
 
@@ -163,7 +163,7 @@ def make_s3_static():
     except Exception as error:
         console_logging('error', f"Error while making {bucket_name_s3} a static website host: {error}")
     
-    
+
 
     pass
 
@@ -215,16 +215,16 @@ def upload_to_s3():
 
     try:
         with open(img_file_name, "rb") as img:
-            s3_client.put_object(Bucket=bucket_name_s3, Key=object, Body=img, ContentType='image/jpeg')
+            s3_client.put_object(Bucket=bucket_name_s3, Key=object, Body=img, ContentType='image/jpeg') # uploads the image file to the bucket and set the content type to image/jpeg
             console_logging('info', f"Image file uploaded to {bucket_name_s3}")
     except Exception as error:
         console_logging('error', f"Error while uploading image: {error}")
 
-    # must make a html document from the get_html_data function to upload to s3
+    
     console_logging('info', f"Uploading index.html to {bucket_name_s3}")
-    html_index_data = get_html_data()
+    html_index_data = get_html_data() # calls the get_html_data function to get the html data
     try:
-        s3_client.put_object(Bucket=bucket_name_s3, Key='index.html', Body=html_index_data, ContentType='text/html')
+        s3_client.put_object(Bucket=bucket_name_s3, Key='index.html', Body=html_index_data, ContentType='text/html') # uploads the index.html file to the bucket and set the content type to html
         console_logging('info', f"index.html uploaded to {bucket_name_s3}")
     except Exception as error:
         console_logging('error', f"Error while uploading index.html: {error}")
@@ -236,19 +236,26 @@ def upload_to_s3():
 
 
 
-def console_logging(type, m_info):
-    if type == 'info':
-        print(f"INFO: {m_info}")
-        logging.info(f"INFO: {m_info}")
-    elif type == 'error':
-        print(f"ERROR: {m_info}")
-        logging.error(f"ERROR: {m_info}")
-    elif type == 'debug':
-        print(f"DEBUG: {m_info}")
-        logging.debug(f"DEBUG: {m_info}")
-    else:
-        print(f"{m_info}")
-        logging.error(f"Error: {m_info}")
+def console_logging(type, m_info, flag=True):
+
+    if flag:
+        if type == 'info':
+            print(f"INFO: {m_info}")
+            logging.info(f"INFO: {m_info}")
+        elif type == 'error':
+            print(f"ERROR: {m_info}")
+            logging.error(f"ERROR: {m_info}")
+            program_error() # call program error function to clean up resources and exit
+        elif type == 'debug':
+            print(f"DEBUG: {m_info}")
+            logging.debug(f"DEBUG: {m_info}")
+        else:
+            print(f"{m_info}")
+            logging.error(f"Error: {m_info}")
+    elif flag == False:
+        print(f"Error: {m_info} - False Flag Captured - Exiting Program")   
+        logging.error(f"Error: {m_info} - False Flag Captured - Exiting Program")
+        sys.exit(1)    
     pass
 
 
@@ -269,7 +276,7 @@ def get_ipt_args():
         if sys.argv[1] == 'True':
             cleanup = True
             console_logging('info', "Cleanup flag detected. Will remove all resources after script completion")
-            wait_time = 60 # defualt wait time of 60 seconds 
+            wait_time = 30 # defualt wait time 
             console_logging('info', f"Wait time set to {wait_time} seconds post script completion")
     else:
         console_logging('info', "No cleanup flag detected. Will not remove resources after script completion")
@@ -278,8 +285,13 @@ def get_ipt_args():
 
 
 def cleanup_resources():
+    # Cleanup function to remove all resources created during the script execution 
+    # Note - flag here is set to false to avoid the program error function from being called recursively
     console_logging('info', f"Cleaning up resources after {wait_time} seconds")
-    time.sleep(wait_time)
+    time.sleep(wait_time/2)
+    console_logging('info', f"Cleaning up resources in {round(wait_time/2, 0)} seconds")
+    time.sleep(wait_time/2)
+    console_logging('info', "Cleaning up resources in progress")
     # Empty S3 bucket
     console_logging('info', f"Emptying bucket: {bucket_name_s3}")
     try:
@@ -289,10 +301,10 @@ def cleanup_resources():
                 obj.delete()
                 console_logging('info', f"Deleted object: {obj.key}")
             except Exception as error:
-                console_logging('error', f"Error while deleting object: {error}")
+                console_logging('error', f"Error while deleting object: {error}", False)
         console_logging('info', f"Bucket {bucket_name_s3} is now empty")
     except Exception as error:
-        console_logging('error', f"Error while emptying bucket: {error}")
+        console_logging('error', f"Error while emptying bucket: {error}", False)
     
     # Delete S3 bucket
     console_logging('info', f"Deleting bucket: {bucket_name_s3}")
@@ -300,7 +312,7 @@ def cleanup_resources():
         s3_client.delete_bucket(Bucket=bucket_name_s3)
         console_logging('info', f"Deleted bucket: {bucket_name_s3}")
     except Exception as error:
-        console_logging('error', f"Error while deleting bucket: {error}")
+        console_logging('error', f"Error while deleting bucket: {error}", False)
 
     # Terminate EC2 instance
     console_logging('info', f"Terminating instance: {instance[0].id}")
@@ -308,12 +320,17 @@ def cleanup_resources():
         instance[0].terminate()
         console_logging('info', f"Terminated instance: {instance[0].id}")
     except Exception as error:
-        console_logging('error', f"Error while terminating instance: {error}")
+        console_logging('error', f"Error while terminating instance: {error}", False)
     
     console_logging('info', "Cleanup complete")
     pass
 
 
+def program_error():
+    console_logging('debug', "Error in program execution - Cleaning Up Resources and Exiting")
+    cleanup_resources()
+    sys.exit(1)
+    pass
 
 # Main function to call the above functions 
 
