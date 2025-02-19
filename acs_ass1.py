@@ -17,7 +17,7 @@ import random
 import sys
 import requests
 import os
-
+import string
 
 ## Declarations and Global Variables ##
 
@@ -26,6 +26,12 @@ ec2 = boto3.resource('ec2')
 
 # s3 initalisation
 s3 = boto3.client('s3')
+
+# bucket name for s3 bucket creation - https://www.geeksforgeeks.org/python-generate-random-string-of-given-length/ 
+str_lenght = 6
+bucket_name_s3 = ''.join(random.choices(string.ascii_letters + string.digits, k=str_lenght))
+bucket_name_s3 = bucket_name_s3 + '-pwalsh'
+bucket_name_s3 = bucket_name_s3.lower()
 
 # image download url and file name
 img_dwl_url = "https://setuacsresources.s3-eu-west-1.amazonaws.com/image.jpeg"
@@ -91,8 +97,31 @@ def create_ec2_instance():
     pass
 
 
+# https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/create_bucket.html
 def create_s3_bucket():
+
+    try:
+        response = s3.create_bucket(Bucket=bucket_name_s3)
+        print (response)
+    except Exception as error:
+        print (error)
+
+
+
     pass
+
+# https://boto3.amazonaws.com/v1/documentation/api/latest/guide/s3-example-static-web-host.html
+def make_s3_static():
+    website_configuration = {
+    'ErrorDocument': {'Key': 'error.html'},
+    'IndexDocument': {'Suffix': 'index.html'},
+}
+
+    s3.put_bucket_website(Bucket='amzn-s3-demo-website-bucket',
+                      WebsiteConfiguration=website_configuration)
+    pass
+
+
 
 def get_image():
     # https://requests.readthedocs.io/en/latest/user/quickstart/#errors-and-exceptions - request documentation for error handling
@@ -119,8 +148,9 @@ def get_image():
 
 def main():
     get_image()
-    create_ec2_instance()
+    #create_ec2_instance()
     create_s3_bucket()
+    make_s3_static()
     
     pass
 
