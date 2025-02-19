@@ -116,56 +116,38 @@ def create_s3_bucket():
 
     pass
 
-# https://boto3.amazonaws.com/v1/documentation/api/latest/guide/s3-example-bucket-policies.html
-def set_bucket_policy():
-
-    # Create a bucket policy
-    
-    bucket_policy = {
-        'Version': '2012-10-17',
-        'Statement': [{
-            'Sid': 'AddPerm',
-            'Effect': 'Allow',
-            'Principal': '*',
-            'Action': ['s3:GetObject'],
-            'Resource': f'arn:aws:s3:::{bucket_name_s3}/*'
-        }]
-    }
-
-    # Convert the policy from JSON dict to string
-    bucket_policy = json.dumps(bucket_policy)
-    try:
-        s3.put_bucket_policy(Bucket=bucket_name_s3, Policy=bucket_policy)
-        return True
-    except Exception as error:
-        print (error)
-        return False
-
-
 # https://boto3.amazonaws.com/v1/documentation/api/latest/guide/s3-example-static-web-host.html
 def make_s3_static():
-    if set_bucket_policy():
-        print("Bucket policy set successfully")
     
-        website_configuration = {
-        'ErrorDocument': {'Key': 'error.html'},
-        'IndexDocument': {'Suffix': 'index.html'}}
+    website_configuration = {
+    'ErrorDocument': {'Key': 'error.html'},
+    'IndexDocument': {'Suffix': 'index.html'}}
 
-        try:
-            s3.put_bucket_website(Bucket=bucket_name_s3,
-                            WebsiteConfiguration=website_configuration)
-        except Exception as error:
-            print (error)
+    try:
+        s3.put_bucket_website(Bucket=bucket_name_s3,
+                        WebsiteConfiguration=website_configuration)
+    except Exception as error:
+        print (error)
 
-    else:
-            print("Error setting bucket policy")
-        
 
     pass
 
 
 
-
+def get_html_data(): 
+    return f'''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>ACS Assignment 1 - Peter Walsh</title>
+    </head>
+    <body>
+    <img>
+        {object}
+    </img>
+    </body>
+    </html>
+    '''
    
 
 def get_image():
@@ -187,18 +169,27 @@ def get_image():
 
     pass
 
+
+# https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/put_object.html
 def upload_to_s3():
+    global object
     object = img_file_name
     file_type = '.' + object.split(".")[1]
     object = object.split(".")[0] + '_pwalsh' + file_type
 
 
     try:
-        response = s3.upload_file(img_file_name, bucket_name_s3, object)
-        print(response)
+        s3.put_object(Bucket=bucket_name_s3, Key=object, Body=img_file_name, ContentType='image/jpeg')
+        
     except Exception as error:
         print(error)
 
+    # must make a html document from the get_html_data function to upload to s3
+    html_index_data = get_html_data()
+    try:
+        s3.put_object(Bucket=bucket_name_s3, Key='index.html', Body=html_index_data, ContentType='text/html')
+    except Exception as error:
+        print(error)
 
     pass
 
