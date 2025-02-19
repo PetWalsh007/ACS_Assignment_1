@@ -22,6 +22,8 @@ import json
 
 ##---------##
 ## Declarations and Global Variables ##
+# https://docs.python.org/3/library/logging.html - 
+logging.basicConfig(filename="PWalsh-ACS-log-Assignment1", level=logging.INFO, format="%(asctime)s - %(message)s")
 
 # ec2 initalisation 
 ec2 = boto3.resource('ec2')
@@ -196,21 +198,27 @@ def upload_to_s3():
     object = img_file_name
     file_type = '.' + object.split(".")[1]
     object = object.split(".")[0] + '_pwalsh' + file_type
-
+    print(f"Uploading image file: {object} to {bucket_name_s3}")
+    logging.info(f"Uploading image file: {object} to {bucket_name_s3}")
 
     try:
         with open(img_file_name, "rb") as img:
             s3_client.put_object(Bucket=bucket_name_s3, Key=object, Body=img, ContentType='image/jpeg')
-        
+            print(f"Image file have been uploaded to {bucket_name_s3}")
+            logging.info(f"Image file have been uploaded to {bucket_name_s3}")
     except Exception as error:
         print(error)
+        logging.error(f"Error while uploading image: {error}")
 
     # must make a html document from the get_html_data function to upload to s3
     html_index_data = get_html_data()
     try:
         s3_client.put_object(Bucket=bucket_name_s3, Key='index.html', Body=html_index_data, ContentType='text/html')
+        print(f"index.html file have been uploaded to {bucket_name_s3}")
+        logging.info(f"index.html file have been uploaded to {bucket_name_s3}")
     except Exception as error:
         print(error)
+        logging.error(f"Error while uploading index.html: {error}")
 
     pass
 
@@ -219,8 +227,8 @@ def upload_to_s3():
 
 def main():
     get_image()
-    #create_ec2_instance()
-    #create_ami()
+    create_ec2_instance()
+    create_ami()
     create_s3_bucket()
     make_s3_static() # call make static function to make the bucket static host
     upload_to_s3()
@@ -234,5 +242,9 @@ def main():
 
 
 if __name__ == '__main__':
+    
+    logging.info(f"------------------------------")
+    logging.info(f"ACS Assignment 1 - Peter Walsh - Script Start")
+
     main()
 
