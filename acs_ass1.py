@@ -252,16 +252,82 @@ def console_logging(type, m_info):
     pass
 
 
+def get_ipt_args():
+# Function to take the input arguments from the user to determine if cleanup is required after the script has run
+
+    global cleanup
+    global wait_time
+    cleanup = False
+    wait_time = 0
+    if len(sys.argv) > 2:
+        if sys.argv[1] == 'True':
+            cleanup = True
+            console_logging('info', "Cleanup flag detected. Will remove all resources after script completion")
+            wait_time = sys.argv[2]
+            console_logging('info', f"Wait time set to {wait_time} seconds post script completion")
+    elif len(sys.argv) == 2:
+        if sys.argv[1] == 'True':
+            cleanup = True
+            console_logging('info', "Cleanup flag detected. Will remove all resources after script completion")
+            wait_time = 60 # defualt wait time of 60 seconds 
+            console_logging('info', f"Wait time set to {wait_time} seconds post script completion")
+    else:
+        console_logging('info', "No cleanup flag detected. Will not remove resources after script completion")
+
+
+
+
+def cleanup_resources():
+    console_logging('info', f"Cleaning up resources after {wait_time} seconds")
+    time.sleep(wait_time)
+    # Empty S3 bucket
+    console_logging('info', f"Emptying bucket: {bucket_name_s3}")
+    try:
+        bucket = s3.Bucket(bucket_name_s3)
+        for obj in bucket.objects.all():
+            try:
+                obj.delete()
+                console_logging('info', f"Deleted object: {obj.key}")
+            except Exception as error:
+                console_logging('error', f"Error while deleting object: {error}")
+        console_logging('info', f"Bucket {bucket_name_s3} is now empty")
+    except Exception as error:
+        console_logging('error', f"Error while emptying bucket: {error}")
+    
+    # Delete S3 bucket
+    console_logging('info', f"Deleting bucket: {bucket_name_s3}")
+    try:
+        s3_client.delete_bucket(Bucket=bucket_name_s3)
+        console_logging('info', f"Deleted bucket: {bucket_name_s3}")
+    except Exception as error:
+        console_logging('error', f"Error while deleting bucket: {error}")
+
+    # Terminate EC2 instance
+    console_logging('info', f"Terminating instance: {instance[0].id}")
+    try:
+        instance[0].terminate()
+        console_logging('info', f"Terminated instance: {instance[0].id}")
+    except Exception as error:
+        console_logging('error', f"Error while terminating instance: {error}")
+    
+    console_logging('info', "Cleanup complete")
+    pass
+
+
 
 # Main function to call the above functions 
 
 def main():
+    get_ipt_args()
     get_image()
     create_ec2_instance()
     create_ami()
     create_s3_bucket()
     make_s3_static() # call make static function to make the bucket static host
     upload_to_s3()
+
+    if cleanup:
+        cleanup_resources()
     
     pass
 

@@ -38,4 +38,5 @@ This repository contains the code for **Assessment 1** of Automated Cloud Servic
    - Additional explanations within the script  
 
 ## Additional Functionality (TBD)
-Further enhancements will be added to improve the overall functionality of the script.
+1. **Auto Cleanup**
+   - Added dynamic argument handling to check for cmd args to allow for auto cleanup of tests
