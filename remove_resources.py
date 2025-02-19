@@ -2,6 +2,7 @@
 import boto3
 
 s3 = boto3.client('s3')
+ec2 = boto3.resource('ec2')
 
 def empty_s3_bucket(bucket_name):
     try:
@@ -26,6 +27,14 @@ def main():
     for bucket in buckets['Buckets']:
         empty_s3_bucket(bucket['Name'])
         delete_s3_bucket(bucket['Name'])
+
+    
+    insts = ec2.instances.all()
+    for inst in insts:
+        inst.terminate()
+    
+
+
     pass
 
 if __name__ == '__main__':
