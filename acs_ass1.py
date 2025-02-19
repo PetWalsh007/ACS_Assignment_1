@@ -122,16 +122,13 @@ def create_s3_bucket():
     # Updated bucket policy to allow public access to the bucket
     bucket_policy = {
         "Version": "2012-10-17",
-        "Statement": [
-            {
+        "Statement": [{
         "Sid": "PublicReadGetObject",
         "Effect": "Allow",
         "Principal": "*",
         "Action": ["s3:GetObject"],
         "Resource": [
-                f"arn:aws:s3:::{bucket_name_s3}/*"
-            ]
-            }
+                f"arn:aws:s3:::{bucket_name_s3}/*"]}
             ]
 
         }
