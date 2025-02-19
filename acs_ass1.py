@@ -20,13 +20,15 @@ import os
 import string
 import json
 
+##---------##
 ## Declarations and Global Variables ##
 
 # ec2 initalisation 
 ec2 = boto3.resource('ec2')
 
 # s3 initalisation
-s3 = boto3.client('s3')
+s3 = boto3.resource('s3')
+s3_client = boto3.client('s3')
 
 # bucket name for s3 bucket creation - https://www.geeksforgeeks.org/python-generate-random-string-of-given-length/ 
 str_lenght = 6
@@ -51,7 +53,7 @@ ami_id = 'ami-053a45fff0a704a47'
 # tag name for the instance - # time will allow us to sort by name using timestamp
 tag_name = f'{time.strftime("%d%m%y%H%M%S")}_PWalsh_ACS_Assignment1' 
 
-
+##---------##
 
 
 def create_ec2_instance():
@@ -112,6 +114,31 @@ def create_s3_bucket():
     except Exception as error:
         print (error)
 
+    try:
+        s3_client.delete_public_access_block(Bucket=bucket_name_s3)
+    except Exception as error:
+        print(error)
+
+    # Updated bucket policy to allow public access to the bucket
+    bucket_policy = {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+        "Sid": "PublicReadGetObject",
+        "Effect": "Allow",
+        "Principal": "*",
+        "Action": ["s3:GetObject"],
+        "Resource": [
+                f"arn:aws:s3:::{bucket_name_s3}/*"
+            ]
+            }
+            ]
+
+        }
+    
+    s3.Bucket(bucket_name_s3).Policy().put(Policy=json.dumps(bucket_policy))
+    
+
 
 
     pass
@@ -121,13 +148,11 @@ def make_s3_static():
     
     website_configuration = {
     'ErrorDocument': {'Key': 'error.html'},
-    'IndexDocument': {'Suffix': 'index.html'}}
+    'IndexDocument': {'Suffix': 'index.html'},
+    }
 
-    try:
-        s3.put_bucket_website(Bucket=bucket_name_s3,
-                        WebsiteConfiguration=website_configuration)
-    except Exception as error:
-        print (error)
+    bucket_website = s3.BucketWebsite(bucket_name_s3)
+    bucket_website.put(WebsiteConfiguration=website_configuration)
 
 
     pass
@@ -142,9 +167,8 @@ def get_html_data():
         <title>ACS Assignment 1 - Peter Walsh</title>
     </head>
     <body>
-    <img>
-        {object}
-    </img>
+    <img src="{object}" />
+    <h1>Peter Walsh 20098070</h1>
     </body>
     </html>
     '''
@@ -152,7 +176,6 @@ def get_html_data():
 
 def get_image():
     # https://requests.readthedocs.io/en/latest/user/quickstart/#errors-and-exceptions - request documentation for error handling
-
     try:
         img_resource = requests.get(img_dwl_url)
     except requests.exceptions.RequestException as e:
@@ -179,7 +202,8 @@ def upload_to_s3():
 
 
     try:
-        s3.put_object(Bucket=bucket_name_s3, Key=object, Body=img_file_name, ContentType='image/jpeg')
+        with open(img_file_name, "rb") as img:
+            s3_client.put_object(Bucket=bucket_name_s3, Key=object, Body=img, ContentType='image/jpeg')
         
     except Exception as error:
         print(error)
@@ -187,7 +211,7 @@ def upload_to_s3():
     # must make a html document from the get_html_data function to upload to s3
     html_index_data = get_html_data()
     try:
-        s3.put_object(Bucket=bucket_name_s3, Key='index.html', Body=html_index_data, ContentType='text/html')
+        s3_client.put_object(Bucket=bucket_name_s3, Key='index.html', Body=html_index_data, ContentType='text/html')
     except Exception as error:
         print(error)
 
@@ -201,7 +225,7 @@ def main():
     #create_ec2_instance()
     #create_ami()
     create_s3_bucket()
-    make_s3_static()
+    make_s3_static() # call make static function to make the bucket static host
     upload_to_s3()
     
     pass
