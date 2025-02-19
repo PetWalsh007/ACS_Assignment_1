@@ -23,7 +23,8 @@ import json
 ##---------##
 ## Declarations and Global Variables ##
 # https://docs.python.org/3/library/logging.html - 
-logging.basicConfig(filename="PWalsh-ACS-log-Assignment1", level=logging.INFO, format="%(asctime)s - %(message)s")
+log_format ="%(asctime)s - %(message)s"
+logging.basicConfig(filename="PWalsh-ACS-log-Assignment1", level=logging.INFO, format=log_format)
 
 # ec2 initalisation 
 ec2 = boto3.resource('ec2')
@@ -59,7 +60,7 @@ tag_name = f'{time.strftime("%d%m%y%H%M%S")}_PWalsh_ACS_Assignment1'
 
 
 def create_ec2_instance():
-
+    console_logging('info', f"Creating EC2 instance with tag name: {tag_name}")
     global instance_ip_addr
     global instance
 
@@ -96,9 +97,10 @@ def create_ec2_instance():
     instance[0].wait_until_running() # wait until running to obtain ip address
     instance[0].reload() # Reload to get new info
     instance_ip_addr = instance[0].public_ip_address
-    print(f"Instance ID: {instance[0].id}")
-    print(f"Instance IP Address: {instance_ip_addr}")
-    print(f"Instance State: {instance[0].state}")
+    console_logging('info', f"Instance ID: {instance[0].id}")
+    console_logging('info', f"Instance IP Address: {instance_ip_addr}")
+    console_logging('info', f"Instance State: {instance[0].state}")
+    console_logging('info', f"Instance is now available at http://{instance_ip_addr}")
     pass
 
 
@@ -109,17 +111,19 @@ def create_ami():
 
 # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/create_bucket.html
 def create_s3_bucket():
-
+    console_logging('info', f"Creating S3 bucket: {bucket_name_s3}")
     try:
         response = s3.create_bucket(Bucket=bucket_name_s3)
-        print (response)
+        console_logging('info', f"{response}")
     except Exception as error:
-        print (error)
+        console_logging('error', f"Error while creating S3 bucket: {error}")
 
+    # Removed public access block to allow public access to the bucket
+    console_logging('info', f"Removing public access block from {bucket_name_s3}")
     try:
         s3_client.delete_public_access_block(Bucket=bucket_name_s3)
     except Exception as error:
-        print(error)
+        console_logging('error', f"Error while removing public access block: {error}")
 
     # Updated bucket policy to allow public access to the bucket
     bucket_policy = {
@@ -135,8 +139,10 @@ def create_s3_bucket():
 
         }
     
-    s3.Bucket(bucket_name_s3).Policy().put(Policy=json.dumps(bucket_policy))
-    
+    try:
+        s3.Bucket(bucket_name_s3).Policy().put(Policy=json.dumps(bucket_policy))
+    except Exception as error:  
+        console_logging('error', f"Error while updating bucket policy: {error}")
 
 
 
@@ -144,15 +150,20 @@ def create_s3_bucket():
 
 # https://boto3.amazonaws.com/v1/documentation/api/latest/guide/s3-example-static-web-host.html
 def make_s3_static():
-    
+    console_logging('info', f"Making {bucket_name_s3} a static website host")
     website_configuration = {
     'ErrorDocument': {'Key': 'error.html'},
     'IndexDocument': {'Suffix': 'index.html'},
     }
 
-    bucket_website = s3.BucketWebsite(bucket_name_s3)
-    bucket_website.put(WebsiteConfiguration=website_configuration)
-
+    try:
+        bucket_website = s3.BucketWebsite(bucket_name_s3)
+        bucket_website.put(WebsiteConfiguration=website_configuration)
+        console_logging('info', f"{bucket_name_s3} is now a static website host")
+    except Exception as error:
+        console_logging('error', f"Error while making {bucket_name_s3} a static website host: {error}")
+    
+    
 
     pass
 
@@ -175,10 +186,12 @@ def get_html_data():
 
 def get_image():
     # https://requests.readthedocs.io/en/latest/user/quickstart/#errors-and-exceptions - request documentation for error handling
+    console_logging('info', f"Downloading image from {img_dwl_url}")
     try:
         img_resource = requests.get(img_dwl_url)
     except requests.exceptions.RequestException as e:
-        print(f"Error: {e}")
+        console_logging('error', f"Error while downloading image: {e}")
+
         
 
     # Avoid redownlaoding the same image if it already exists in the directory - To be removed in final version
@@ -198,29 +211,46 @@ def upload_to_s3():
     object = img_file_name
     file_type = '.' + object.split(".")[1]
     object = object.split(".")[0] + '_pwalsh' + file_type
-    print(f"Uploading image file: {object} to {bucket_name_s3}")
-    logging.info(f"Uploading image file: {object} to {bucket_name_s3}")
+    console_logging('info', f"Uploading image file to {bucket_name_s3}")
 
     try:
         with open(img_file_name, "rb") as img:
             s3_client.put_object(Bucket=bucket_name_s3, Key=object, Body=img, ContentType='image/jpeg')
-            print(f"Image file have been uploaded to {bucket_name_s3}")
-            logging.info(f"Image file have been uploaded to {bucket_name_s3}")
+            console_logging('info', f"Image file uploaded to {bucket_name_s3}")
     except Exception as error:
-        print(error)
-        logging.error(f"Error while uploading image: {error}")
+        console_logging('error', f"Error while uploading image: {error}")
 
     # must make a html document from the get_html_data function to upload to s3
+    console_logging('info', f"Uploading index.html to {bucket_name_s3}")
     html_index_data = get_html_data()
     try:
         s3_client.put_object(Bucket=bucket_name_s3, Key='index.html', Body=html_index_data, ContentType='text/html')
-        print(f"index.html file have been uploaded to {bucket_name_s3}")
-        logging.info(f"index.html file have been uploaded to {bucket_name_s3}")
+        console_logging('info', f"index.html uploaded to {bucket_name_s3}")
     except Exception as error:
-        print(error)
-        logging.error(f"Error while uploading index.html: {error}")
+        console_logging('error', f"Error while uploading index.html: {error}")
+
+    console_logging('info', f"Website Available at http://{bucket_name_s3}.s3-website-us-east-1.amazonaws.com")
+
 
     pass
+
+
+
+def console_logging(type, m_info):
+    if type == 'info':
+        print(f"INFO: {m_info}")
+        logging.info(f"INFO: {m_info}")
+    elif type == 'error':
+        print(f"ERROR: {m_info}")
+        logging.error(f"ERROR: {m_info}")
+    elif type == 'debug':
+        print(f"DEBUG: {m_info}")
+        logging.debug(f"DEBUG: {m_info}")
+    else:
+        print(f"{m_info}")
+        logging.error(f"Error: {m_info}")
+    pass
+
 
 
 # Main function to call the above functions 
@@ -243,8 +273,9 @@ def main():
 
 if __name__ == '__main__':
     
-    logging.info(f"------------------------------")
-    logging.info(f"ACS Assignment 1 - Peter Walsh - Script Start")
-
+    console_logging('info', "------------------------------")
+    console_logging('info', "ACS Assignment 1 - Peter Walsh - Script Start")
     main()
+    console_logging('info', "ACS Assignment 1 - Peter Walsh - Script End")
+    console_logging('info', "------------------------------")
 
