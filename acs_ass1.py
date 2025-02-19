@@ -116,28 +116,7 @@ def create_s3_bucket():
 
     pass
 
-# https://boto3.amazonaws.com/v1/documentation/api/latest/guide/s3-example-static-web-host.html
-def make_s3_static():
-    website_configuration = {
-    'ErrorDocument': {'Key': 'error.html'},
-    'IndexDocument': {'Suffix': 'index.html'}}
-
-    try:
-        s3.put_bucket_website(Bucket=bucket_name_s3,
-                        WebsiteConfiguration=website_configuration)
-    except Exception as error:
-        print (error)
-
-    if set_bucket_policy():
-        print("Bucket policy set successfully")
-    else:
-        print("Error setting bucket policy")
-    
-
-    pass
-
-
-
+# https://boto3.amazonaws.com/v1/documentation/api/latest/guide/s3-example-bucket-policies.html
 def set_bucket_policy():
 
     # Create a bucket policy
@@ -161,6 +140,32 @@ def set_bucket_policy():
     except Exception as error:
         print (error)
         return False
+
+
+# https://boto3.amazonaws.com/v1/documentation/api/latest/guide/s3-example-static-web-host.html
+def make_s3_static():
+    if set_bucket_policy():
+        print("Bucket policy set successfully")
+    
+        website_configuration = {
+        'ErrorDocument': {'Key': 'error.html'},
+        'IndexDocument': {'Suffix': 'index.html'}}
+
+        try:
+            s3.put_bucket_website(Bucket=bucket_name_s3,
+                            WebsiteConfiguration=website_configuration)
+        except Exception as error:
+            print (error)
+
+    else:
+            print("Error setting bucket policy")
+        
+
+    pass
+
+
+
+
    
 
 def get_image():
