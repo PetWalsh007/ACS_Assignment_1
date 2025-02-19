@@ -18,6 +18,7 @@ import sys
 import requests
 import os
 import string
+import json
 
 ## Declarations and Global Variables ##
 
@@ -97,6 +98,11 @@ def create_ec2_instance():
     pass
 
 
+def create_ami():
+
+
+    pass
+
 # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/create_bucket.html
 def create_s3_bucket():
 
@@ -114,14 +120,48 @@ def create_s3_bucket():
 def make_s3_static():
     website_configuration = {
     'ErrorDocument': {'Key': 'error.html'},
-    'IndexDocument': {'Suffix': 'index.html'},
-}
+    'IndexDocument': {'Suffix': 'index.html'}}
 
-    s3.put_bucket_website(Bucket='amzn-s3-demo-website-bucket',
-                      WebsiteConfiguration=website_configuration)
+    try:
+        s3.put_bucket_website(Bucket=bucket_name_s3,
+                        WebsiteConfiguration=website_configuration)
+    except Exception as error:
+        print (error)
+
+    if set_bucket_policy():
+        print("Bucket policy set successfully")
+    else:
+        print("Error setting bucket policy")
+    
+
     pass
 
 
+
+def set_bucket_policy():
+
+    # Create a bucket policy
+    
+    bucket_policy = {
+        'Version': '2012-10-17',
+        'Statement': [{
+            'Sid': 'AddPerm',
+            'Effect': 'Allow',
+            'Principal': '*',
+            'Action': ['s3:GetObject'],
+            'Resource': f'arn:aws:s3:::{bucket_name_s3}/*'
+        }]
+    }
+
+    # Convert the policy from JSON dict to string
+    bucket_policy = json.dumps(bucket_policy)
+    try:
+        s3.put_bucket_policy(Bucket=bucket_name_s3, Policy=bucket_policy)
+        return True
+    except Exception as error:
+        print (error)
+        return False
+   
 
 def get_image():
     # https://requests.readthedocs.io/en/latest/user/quickstart/#errors-and-exceptions - request documentation for error handling
@@ -142,6 +182,20 @@ def get_image():
 
     pass
 
+def upload_to_s3():
+    object = img_file_name
+    file_type = '.' + object.split(".")[1]
+    object = object.split(".")[0] + '_pwalsh' + file_type
+
+
+    try:
+        response = s3.upload_file(img_file_name, bucket_name_s3, object)
+        print(response)
+    except Exception as error:
+        print(error)
+
+
+    pass
 
 
 # Main function to call the above functions 
@@ -149,8 +203,10 @@ def get_image():
 def main():
     get_image()
     #create_ec2_instance()
+    #create_ami()
     create_s3_bucket()
     make_s3_static()
+    upload_to_s3()
     
     pass
 
