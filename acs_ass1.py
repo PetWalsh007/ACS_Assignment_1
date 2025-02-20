@@ -28,6 +28,7 @@ logging.basicConfig(filename="PWalsh-ACS-log-Assignment1", level=logging.INFO, f
 
 # ec2 initalisation 
 ec2 = boto3.resource('ec2')
+ec2_client = boto3.client('ec2')
 
 # s3 initalisation
 s3 = boto3.resource('s3')
@@ -112,11 +113,12 @@ def get_userdata_file():
 
 # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2/client/create_image.html
 def create_ami():
+    global created_ami_id
 
     console_logging('info', f"Begining to create new AMI with tag name: {created_ami_name}")
 
     try:
-        response = ec2.client.create_image(TagSpecifications=[{
+        response = ec2_client.create_image(TagSpecifications=[{
                                                             'ResourceType': 'image',
                                                             'Tags':[
                                                                 {
@@ -124,15 +126,28 @@ def create_ami():
                                                                 },
                                                             ]
                                                         }],
-
+        Description='An AMI for ACS Assignment 1 - Peter Walsh',
         InstanceId = instance[0].id,
         Name = created_ami_name,
         )
-
+        created_ami_id = response['ImageId']
         console_logging('info', f"AMI ID: {response['ImageId']}")
     except Exception as error:
         console_logging('error', f"Error while creating AMI: {error}")
 
+    # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2/client/describe_images.html
+    
+    response = ec2_client.describe_images(ImageIds=[
+                                                created_ami_id,
+                                            ],
+    )
+
+ 
+    try:
+        response = response['Images'][0]['State']
+        console_logging('info', f"AMI State: {response}")
+    except Exception as error:
+        console_logging('error', f"Error while getting AMI state: {error}")
 
 
     pass
