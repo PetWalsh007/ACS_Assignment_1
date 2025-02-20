@@ -254,7 +254,7 @@ def console_logging(type, m_info, flag=True):
             logging.error(f"Error: {m_info}")
     elif flag == False:
         print(f"Error: {m_info} - False Flag Captured - Exiting Program")   
-        logging.error(f"Error: {m_info} - False Flag Captured - Exiting Program") 
+        logging.error(f"Error: {m_info} - False Flag Captured - Exiting Program Now") 
     pass
 
 
@@ -269,8 +269,10 @@ def get_ipt_args():
         if sys.argv[1] == 'True':
             cleanup = True
             console_logging('info', "Cleanup flag detected. Script will remove all resources after script completion")
-            wait_time = sys.argv[2]
+            wait_time = int(sys.argv[2])
             console_logging('info', f"Wait time set to {wait_time} seconds post script completion")
+        if sys.argv[1] == 'False':
+            console_logging('info', "No cleanup flag detected. Script will not remove resources after script completion")
     elif len(sys.argv) == 2:
         if sys.argv[1] == 'True':
             cleanup = True
@@ -327,7 +329,7 @@ def cleanup_resources():
 
 def program_error():
     cleanup_resources()
-    console_logging('error', "Exiting Program due to error in script", False)
+    console_logging('error', "Starting Exit of Program due to error in script", False)
     sys.exit(1)
     pass
 
