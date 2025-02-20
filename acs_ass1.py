@@ -129,10 +129,7 @@ def create_ami():
         Name = created_ami_name,
         )
 
-        if response['ResponseMetadata']['HTTPStatusCode'] == 200:
-            console_logging('info', f"AMI created with ID: {response['ImageId']}")
-        else:
-            console_logging('error', f"Error while creating AMI: {response['ResponseMetadata']['HTTPStatusCode']}")
+        console_logging('info', f"AMI ID: {response['ImageId']}")
     except Exception as error:
         console_logging('error', f"Error while creating AMI: {error}")
 
