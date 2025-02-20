@@ -55,6 +55,7 @@ ami_id = 'ami-053a45fff0a704a47'
 
 # tag name for the instance - # time will allow us to sort by name using timestamp
 tag_name = f'{time.strftime("%d%m%y%H%M%S")}_PWalsh_ACS_Assignment1' 
+created_ami_name = tag_name + '_AMI'
 
 ##---------##
 
@@ -79,7 +80,22 @@ def create_ec2_instance():
                         ]
             },
         ],
-        UserData='''#!/bin/bash
+        UserData = get_userdata_file()
+        )
+    
+    instance[0].wait_until_running() # wait until running to obtain ip address
+    instance[0].reload() # Reload to get new info
+    instance_ip_addr = instance[0].public_ip_address
+    console_logging('info', f"Instance ID: {instance[0].id}")
+    console_logging('info', f"Instance IP Address: {instance_ip_addr}")
+    console_logging('info', f"Instance State: {instance[0].state['Name']}")
+    console_logging('info', f"Instance is now available at http://{instance_ip_addr}")
+    pass
+
+
+
+def get_userdata_file():
+    return '''#!/bin/bash
                     yum update -y
                     yum install httpd -y
                     systemctl enable httpd
@@ -92,19 +108,34 @@ def create_ec2_instance():
                     echo "<br>IP address: " >> /var/www/html/index.html
                     curl --silent -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/public-ipv4 >> /var/www/html/index.html
                 '''
-                )
-    
-    instance[0].wait_until_running() # wait until running to obtain ip address
-    instance[0].reload() # Reload to get new info
-    instance_ip_addr = instance[0].public_ip_address
-    console_logging('info', f"Instance ID: {instance[0].id}")
-    console_logging('info', f"Instance IP Address: {instance_ip_addr}")
-    console_logging('info', f"Instance State: {instance[0].state['Name']}")
-    console_logging('info', f"Instance is now available at http://{instance_ip_addr}")
-    pass
 
 
+# https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2/client/create_image.html
 def create_ami():
+
+    console_logging('info', f"Begining to create new AMI with tag name: {created_ami_name}")
+
+    try:
+        response = ec2.client.create_image(TagSpecifications=[{
+                                                            'ResourceType': 'image',
+                                                            'Tags':[
+                                                                {
+                                                                    'Key': 'Name','Value': created_ami_name
+                                                                },
+                                                            ]
+                                                        }],
+
+        InstanceId = instance[0].id,
+        Name = created_ami_name,
+        )
+
+        if response['ResponseMetadata']['HTTPStatusCode'] == 200:
+            console_logging('info', f"AMI created with ID: {response['ImageId']}")
+        else:
+            console_logging('error', f"Error while creating AMI: {response['ResponseMetadata']['HTTPStatusCode']}")
+    except Exception as error:
+        console_logging('error', f"Error while creating AMI: {error}")
+
 
 
     pass
@@ -189,6 +220,12 @@ def get_image():
     console_logging('info', f"Downloading image from {img_dwl_url}")
     try:
         img_resource = requests.get(img_dwl_url)
+        if img_resource.status_code != 200:
+            console_logging('error', f"Error while downloading image: {img_resource.status_code}")
+        elif img_resource.status_code == 200:
+            console_logging('info', f"Image downloaded successfully")
+        else:
+            console_logging('error', f"Error while downloading image: {img_resource.status_code}")
     except requests.exceptions.RequestException as e:
         console_logging('error', f"Error while downloading image: {e}")
 
@@ -253,8 +290,8 @@ def console_logging(type, m_info, flag=True):
             print(f"{m_info}")
             logging.error(f"Error: {m_info}")
     elif flag == False:
-        print(f"Error: {m_info} - False Flag Captured - Exiting Program")   
-        logging.error(f"Error: {m_info} - False Flag Captured - Exiting Program Now") 
+        print(f"Error: {m_info} - False Flag Captured - Exiting Program State")   
+        logging.error(f"Error: {m_info} - False Flag Captured - Exiting Program State") 
     pass
 
 
@@ -265,16 +302,17 @@ def get_ipt_args():
     global wait_time
     cleanup = False
     wait_time = 0
+    sys.argv[1] = sys.argv[1].upper() # convert to uppercase to avoid case sensitivity
     if len(sys.argv) > 2:
-        if sys.argv[1] == 'True':
+        if sys.argv[1] == 'TRUE':
             cleanup = True
             console_logging('info', "Cleanup flag detected. Script will remove all resources after script completion")
             wait_time = int(sys.argv[2])
             console_logging('info', f"Wait time set to {wait_time} seconds post script completion")
-        if sys.argv[1] == 'False':
+        if sys.argv[1] == 'FALSE':
             console_logging('info', "No cleanup flag detected. Script will not remove resources after script completion")
     elif len(sys.argv) == 2:
-        if sys.argv[1] == 'True':
+        if sys.argv[1] == 'TRUE':
             cleanup = True
             console_logging('info', "Cleanup flag detected. Script will remove all resources after script completion")
             wait_time = 30 # defualt wait time 
