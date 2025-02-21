@@ -561,18 +561,14 @@ def main():
     print()
     upload_run_monitoring()
     print()
+    upload_logs(s3_url_name)
+    print()
     if cleanup:
         cleanup_resources()
         print()
         for job in cleanup_jobs:
             console_logging('info', f"Status of removal post cleanup job: {job} - {'Success' if cleanup_jobs[job] else 'Failed'}")
         print()
-    else:
-        console_logging('info', "No cleanup Set - Uploading logs to S3 bucket")
-        print()
-        upload_logs(s3_url_name)
-        print()
-    pass
 
 
 
