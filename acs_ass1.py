@@ -532,10 +532,10 @@ def main():
     print()
     if cleanup:
         cleanup_resources()
-    print()
-    for job in cleanup_jobs:
-        console_logging('info', f"Status of removal post cleanup job: {job} - {'Success' if cleanup_jobs[job] else 'Failed'}")
-    print()
+        print()
+        for job in cleanup_jobs:
+            console_logging('info', f"Status of removal post cleanup job: {job} - {'Success' if cleanup_jobs[job] else 'Failed'}")
+        print()
     pass
 
 
