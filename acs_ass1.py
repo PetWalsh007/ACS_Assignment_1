@@ -361,6 +361,9 @@ def get_ipt_args():
 def cleanup_resources():
     # Cleanup function to remove all resources created during the script execution 
     # Note - flag here is set to false to avoid the program error function from being called recursively
+    global cleanup_jobs
+    cleanup_jobs ={ 's3_bucket': False, 'ec2_instance': False, 'ami': False}
+
     console_logging('info', f"Cleaning up resources after {wait_time} seconds")
     time.sleep(wait_time/2)
     console_logging('info', f"Cleaning up resources in {round(wait_time/2, 0)} seconds")
@@ -385,6 +388,7 @@ def cleanup_resources():
     try:
         s3_client.delete_bucket(Bucket=bucket_name_s3)
         console_logging('info', f"Deleted bucket: {bucket_name_s3}")
+        cleanup_jobs['s3_bucket'] = True
     except Exception as error:
         console_logging('error', f"Error while deleting bucket: {error}", False)
 
@@ -392,9 +396,21 @@ def cleanup_resources():
     console_logging('info', f"Terminating instance: {instance[0].id}")
     try:
         instance[0].terminate()
+        instance[0].wait_until_terminated()
         console_logging('info', f"Terminated instance: {instance[0].id}")
+        cleanup_jobs['ec2_instance'] = True
     except Exception as error:
         console_logging('error', f"Error while terminating instance: {error}", False)
+
+    # Deregister AMI - https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2/client/deregister_image.html 
+    console_logging('info', f"Deregistering AMI: {created_ami_id}")
+    try:
+        ec2_client.deregister_image(ImageId=created_ami_id)
+        console_logging('info', f"Deregistered AMI: {created_ami_id}")
+        cleanup_jobs['ami'] = True
+    except Exception as error:
+        console_logging('error', f"Error while deregistering AMI: {error}", False)
+
     
     console_logging('info', "Cleanup complete")
     pass
@@ -403,6 +419,8 @@ def cleanup_resources():
 def program_error():
     cleanup_resources()
     console_logging('error', "Starting Exit of Program due to error in script", False)
+    for job in cleanup_jobs:
+        console_logging('info', f"Status of removal post cleanup job: {job} - {'Success' if cleanup_jobs[job] else 'Failed'}")
     sys.exit(1)
     pass
 
@@ -470,6 +488,7 @@ def test_ec2_website():
     sleep(10) # sleep for 10 seconds to allow the web server to try startup
     atmp_count = 0
 
+    # give the web server 5 attempts to start up - this equates to 25 seconds 
     while atmp_count < 5:
         try:
             rsp = requests.get(f"http://{instance_ip_addr}", timeout=5)  # Timeout prevents hanging
@@ -511,12 +530,13 @@ def main():
     print()
     upload_run_monitoring()
     print()
-
     if cleanup:
         cleanup_resources()
-    
+    print()
+    for job in cleanup_jobs:
+        console_logging('info', f"Status of removal post cleanup job: {job} - {'Success' if cleanup_jobs[job] else 'Failed'}")
+    print()
     pass
-
 
 
 
