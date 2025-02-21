@@ -26,7 +26,8 @@ from time import sleep
 ## Declarations and Global Variables ##
 # https://docs.python.org/3/library/logging.html - 
 log_format ="%(asctime)s - %(message)s"
-logging.basicConfig(filename="PWalsh-ACS-log-Assignment1", level=logging.INFO, format=log_format)
+log_name = "PWalsh-ACS-log-Assignment1"
+logging.basicConfig(filename=log_name, level=logging.INFO, format=log_format)
 
 # ec2 initalisation 
 ec2 = boto3.resource('ec2')
@@ -504,7 +505,37 @@ def test_ec2_website():
     else:
         console_logging('error', "EC2 website is not active after 5 attempts")
 
-        
+
+def upload_logs(url):
+    # function to upload the logs to the s3 bucket - only required if cleanup is not set
+
+    console_logging('info', "Uploading logs to S3 bucket")
+    
+    # we must find the most recent logs for this script run 
+    try:
+        with open(log_name, 'r') as f:
+            log_data = f.read()
+    except Exception as error:
+        console_logging('error', f"Error while reading logs: {error}")
+    
+    # we can search through the log data and find the most recent run of the script - which will be the last split from our '-----' delimiter
+    log_data = log_data.split('------------------------------')
+    log_data = log_data[-1] 
+   
+    # we can now write this data to a new file to upload to the s3 bucket
+    log_file_name = 'creation_logs.txt'
+
+    try:
+        s3_client.put_object(Bucket=bucket_name_s3, Key=log_file_name, Body=log_data, ContentType='text/plain') # uploads the log txt file
+        console_logging('info', f"{log_file_name} uploaded to {bucket_name_s3}")
+    except Exception as error:
+        console_logging('error', f"Error while uploading {log_file_name}: {error}")
+
+    # now we can output the s3 url for the logs
+    s3_log_url = f"{url}/{log_file_name}"
+    console_logging('info', f"Logs available at \033[1m{s3_log_url}\033[0m")
+
+
     
 
 # Main function to call the above functions 
@@ -535,6 +566,11 @@ def main():
         print()
         for job in cleanup_jobs:
             console_logging('info', f"Status of removal post cleanup job: {job} - {'Success' if cleanup_jobs[job] else 'Failed'}")
+        print()
+    else:
+        console_logging('info', "No cleanup Set - Uploading logs to S3 bucket")
+        print()
+        upload_logs(s3_url_name)
         print()
     pass
 
