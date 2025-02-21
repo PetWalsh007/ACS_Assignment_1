@@ -56,7 +56,8 @@ ami_id = 'ami-053a45fff0a704a47'
 
 # tag name for the instance - # time will allow us to sort by name using timestamp
 tag_name = f'{time.strftime("%d%m%y%H%M%S")}_PWalsh_ACS_Assignment1' 
-created_ami_name = tag_name + '_AMI'
+current_time = time.strftime("%Y-%m-%d%H%M%S")
+created_ami_name =f'PW-{current_time}'
 
 ##---------##
 
@@ -65,33 +66,50 @@ def create_ec2_instance():
     console_logging('info', f"Creating EC2 instance with tag name: {tag_name}")
     global instance_ip_addr
     global instance
-
-    instance = ec2.create_instances(
-        ImageId = ami_id,
-        MinCount=1,
-        MaxCount=1,
-        InstanceType = 't2.nano',
-        KeyName = key_pair_name,
-        SecurityGroupIds = [sg_id],
-        TagSpecifications=[
-            {
-                'ResourceType': 'instance',
-                'Tags': [
-                    {'Key': 'Name','Value': tag_name}
-                        ]
-            },
-        ],
-        UserData = get_userdata_file()
-        )
     
-    instance[0].wait_until_running() # wait until running to obtain ip address
-    instance[0].reload() # Reload to get new info
-    instance_ip_addr = instance[0].public_ip_address
-    console_logging('info', f"Instance ID: {instance[0].id}")
-    console_logging('info', f"Instance IP Address: {instance_ip_addr}")
-    console_logging('info', f"Instance State: {instance[0].state['Name']}")
-    console_logging('info', f"Instance is now available at http://{instance_ip_addr}")
-    pass
+
+    try:
+        instance = ec2.create_instances(
+            ImageId = ami_id,
+            MinCount=1,
+            MaxCount=1,
+            InstanceType = 't2.nano',
+            KeyName = key_pair_name,
+            SecurityGroupIds = [sg_id],
+            TagSpecifications=[
+                {
+                    'ResourceType': 'instance',
+                    'Tags': [
+                        {'Key': 'Name','Value': tag_name}
+                            ]
+                },
+            ],
+            UserData = get_userdata_file()
+            )
+        
+    except Exception as error:
+        console_logging('error', f"Error while creating instance: {error}")
+        
+   # Wait until the instance is running to get the ip address and updated instance info
+    try:
+
+        instance[0].wait_until_running() # wait until running to obtain ip address
+        instance[0].reload() # Reload to get new info
+        instance_ip_addr = instance[0].public_ip_address
+        console_logging('info', f"Instance ID: {instance[0].id}")
+        console_logging('info', f"Instance IP Address: {instance_ip_addr}")
+        console_logging('info', f"Instance State: {instance[0].state['Name']}")
+        console_logging('info', f"Instance Key Pair: {instance[0].key_name}")
+        console_logging('info', f"Instance Security Group: {instance[0].security_groups[0]['GroupId']}")
+    except Exception as error:
+        console_logging('error', f"Error while getting instance info: {error}")
+
+
+    ec2_instance_web_url = f"http://{instance_ip_addr}"
+    console_logging('info', f"Instance is now available at {ec2_instance_web_url}")
+
+    return ec2_instance_web_url
+    
 
 
 
@@ -278,10 +296,13 @@ def upload_to_s3():
     except Exception as error:
         console_logging('error', f"Error while uploading index.html: {error}")
 
-    console_logging('info', f"Website Available at http://{bucket_name_s3}.s3-website-us-east-1.amazonaws.com")
+    s3_website_url
+    s3_website_url = f"http://{bucket_name_s3}.s3-website-us-east-1.amazonaws.com"
+    console_logging('info', f"Website Available at {s3_website_url}")
 
+    return s3_website_url
 
-    pass
+    
 
 
 
@@ -315,20 +336,19 @@ def get_ipt_args():
     cleanup = False
     wait_time = 0
     sys.argv[1] = sys.argv[1].upper() # convert to uppercase to avoid case sensitivity
-    if len(sys.argv) > 2:
-        if sys.argv[1] == 'TRUE':
-            cleanup = True
-            console_logging('info', "Cleanup flag detected. Script will remove all resources after script completion")
+   
+    if sys.argv[1] == 'TRUE':
+        cleanup = True
+        console_logging('info', "Cleanup flag detected. Script will remove all resources after script completion")
+        if len(sys.argv) > 2 and int(sys.argv[2]) > 0:
             wait_time = int(sys.argv[2])
             console_logging('info', f"Wait time set to {wait_time} seconds post script completion")
-        if sys.argv[1] == 'FALSE':
-            console_logging('info', "No cleanup flag detected. Script will not remove resources after script completion")
-    elif len(sys.argv) == 2:
-        if sys.argv[1] == 'TRUE':
-            cleanup = True
-            console_logging('info', "Cleanup flag detected. Script will remove all resources after script completion")
-            wait_time = 30 # defualt wait time 
-            console_logging('info', f"Wait time set to {wait_time} seconds post script completion")
+        else:
+            wait_time = 60 # default wait time 
+            console_logging('info', f"Wait time set to defualt {wait_time} seconds post script completion")
+    elif sys.argv[1] == 'FALSE':
+        console_logging('info', "No cleanup flag detected. Script will not remove resources after script completion")
+
     else:
         console_logging('info', "No cleanup flag detected. Script will not remove resources after script completion")
 
@@ -383,16 +403,37 @@ def program_error():
     sys.exit(1)
     pass
 
+def write_to_file(ec2_url, s3_url):
+    # Function to write the EC2 and S3 URLs to a file
+    
+    file_name = 'pwalsh-websites.txt'
+
+    try:
+        with open(file_name, 'w') as f:
+            f.write(f"EC2 URL: {ec2_url}\n")
+            f.write(f"S3 URL: {s3_url}\n")
+            console_logging('info', f"URLs written to file: {file_name}")
+    except Exception as error:
+        console_logging('error', f"Error while writing URLs to file: {error}")
+
+
+
+
+
+
+
+
 # Main function to call the above functions 
 
 def main():
     get_ipt_args()
     get_image()
-    create_ec2_instance()
+    ec2_url_name = create_ec2_instance()
     create_ami()
     create_s3_bucket()
     make_s3_static() # call make static function to make the bucket static host
-    upload_to_s3()
+    s3_url_name = upload_to_s3()
+    write_to_file(ec2_url_name , s3_url_name)
 
     if cleanup:
         cleanup_resources()
