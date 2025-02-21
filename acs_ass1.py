@@ -19,6 +19,7 @@ import requests
 import os
 import string
 import json
+import subprocess
 
 ##---------##
 ## Declarations and Global Variables ##
@@ -59,11 +60,15 @@ tag_name = f'{time.strftime("%d%m%y%H%M%S")}_PWalsh_ACS_Assignment1'
 current_time = time.strftime("%Y-%m-%d%H%M%S")
 created_ami_name =f'PW-{current_time}'
 
+monitoring_file = 'monitoring.sh'
+
+ec2_user_name = 'ec2-user'
+
 ##---------##
 
 
 def create_ec2_instance():
-    console_logging('info', f"Creating EC2 instance with tag name: {tag_name}")
+    console_logging('info', f"Creating \033[1mEC2 instance\033[0m with tag name: \033[1m{tag_name}\033[0m")
     global instance_ip_addr
     global instance
     
@@ -92,7 +97,7 @@ def create_ec2_instance():
         
    # Wait until the instance is running to get the ip address and updated instance info
     try:
-
+        console_logging('info', "Waiting for instance to be running")
         instance[0].wait_until_running() # wait until running to obtain ip address
         instance[0].reload() # Reload to get new info
         instance_ip_addr = instance[0].public_ip_address
@@ -106,7 +111,7 @@ def create_ec2_instance():
 
 
     ec2_instance_web_url = f"http://{instance_ip_addr}"
-    console_logging('info', f"Instance is now available at {ec2_instance_web_url}")
+    console_logging('info', f"Instance is now available at \033[1m{ec2_instance_web_url}\033[0m")
 
     return ec2_instance_web_url
     
@@ -172,10 +177,11 @@ def create_ami():
 
 # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/create_bucket.html
 def create_s3_bucket():
-    console_logging('info', f"Creating S3 bucket: {bucket_name_s3}")
+    console_logging('info', f"Creating \033[1mS3 bucket: {bucket_name_s3}\033[0m")
     try:
         response = s3.create_bucket(Bucket=bucket_name_s3)
-        console_logging('info', f"{response}")
+        if response:
+            console_logging('info', f"S3 bucket {bucket_name_s3} created successfully")
     except Exception as error:
         console_logging('error', f"Error while creating S3 bucket: {error}")
 
@@ -211,7 +217,7 @@ def create_s3_bucket():
 
 # https://boto3.amazonaws.com/v1/documentation/api/latest/guide/s3-example-static-web-host.html
 def make_s3_static():
-    console_logging('info', f"Making {bucket_name_s3} a static website host")
+    console_logging('info', f"Making \033[1m{bucket_name_s3}\033[0m a static website host")
     website_configuration = {
     'ErrorDocument': {'Key': 'error.html'},
     'IndexDocument': {'Suffix': 'index.html'},
@@ -288,7 +294,7 @@ def upload_to_s3():
         console_logging('error', f"Error while uploading image: {error}")
 
     
-    console_logging('info', f"Uploading index.html to {bucket_name_s3}")
+    console_logging('info', f"Uploading \033[1mindex.html\033[0m to \033[1m{bucket_name_s3}\033[0m")
     html_index_data = get_html_data() # calls the get_html_data function to get the html data
     try:
         s3_client.put_object(Bucket=bucket_name_s3, Key='index.html', Body=html_index_data, ContentType='text/html') # uploads the index.html file to the bucket and set the content type to html
@@ -296,9 +302,8 @@ def upload_to_s3():
     except Exception as error:
         console_logging('error', f"Error while uploading index.html: {error}")
 
-    s3_website_url
     s3_website_url = f"http://{bucket_name_s3}.s3-website-us-east-1.amazonaws.com"
-    console_logging('info', f"Website Available at {s3_website_url}")
+    console_logging('info', f"Website Available at \033[1m{s3_website_url}\033[0m")
 
     return s3_website_url
 
@@ -339,7 +344,7 @@ def get_ipt_args():
    
     if sys.argv[1] == 'TRUE':
         cleanup = True
-        console_logging('info', "Cleanup flag detected. Script will remove all resources after script completion")
+        console_logging('info', "\033[1mCleanup flag detected. Script will remove all resources after script completion\033[0m")
         if len(sys.argv) > 2 and int(sys.argv[2]) > 0:
             wait_time = int(sys.argv[2])
             console_logging('info', f"Wait time set to {wait_time} seconds post script completion")
@@ -407,33 +412,79 @@ def write_to_file(ec2_url, s3_url):
     # Function to write the EC2 and S3 URLs to a file
     
     file_name = 'pwalsh-websites.txt'
-
+    console_logging('info', f"Writing URLs to file: {file_name}")
     try:
         with open(file_name, 'w') as f:
             f.write(f"EC2 URL: {ec2_url}\n")
             f.write(f"S3 URL: {s3_url}\n")
-            console_logging('info', f"URLs written to file: {file_name}")
+            console_logging('info', f"URLs written to file: \033[1m{file_name}\033[0m")
     except Exception as error:
         console_logging('error', f"Error while writing URLs to file: {error}")
 
 
 
 
+def upload_run_monitoring():
+    # function to upload monitoring script to the instance created
+    console_logging('info', f"Uploading monitoring script to instance: {instance[0].id}")
 
+    try:
+        # build connection string
+        console_logging('info', f"Building connection string to upload monitoring script")
 
+        con_str = f'scp -o StrictHostKeyChecking=no -i {key_pair_name}.pem {monitoring_file} {ec2_user_name}@{instance_ip_addr}:~'
+
+        console_logging('info', f"\033[1mConnection string: {con_str}\033[0m")
+
+        console_logging('info', f"\033[1mUploading monitoring script to instance: {instance[0].id}\033[0m")
+
+        # running script using subprocess.run  - check = True will raise an exception if the command fails while in the shell
+        subprocess.run(con_str, shell=True, check=True)
+
+    except Exception as error:
+        console_logging('error', f"Error while building connection string to SCP to instance: {error}")
+
+    console_logging('info', f"Running monitoring script on instance: {instance[0].id}")
+
+    try:
+        # now we need to allow the script to be executable and run it on the instance
+        console_logging('info', f"Executing {monitoring_file} on instance: {instance[0].id}")
+        
+        # chmod the script to make it executable and run it with ./
+        con_str = f'ssh -i {key_pair_name}.pem {ec2_user_name}@{instance_ip_addr} "chmod +x {monitoring_file} && ./{monitoring_file}"'
+
+        console_logging('info', f"\033[1mConnection string: {con_str}\033[0m")
+
+        # running script using subprocess.run  - check = True will raise an exception if the command fails while in the shell
+        subprocess.run(con_str, shell=True, check=True)
+
+    except Exception as error:
+        console_logging('error', f"Error while running monitoring script on instance: {error}")
+        
+    pass
 
 
 # Main function to call the above functions 
 
 def main():
     get_ipt_args()
+    print()
     get_image()
+    print()
     ec2_url_name = create_ec2_instance()
+    print()
     create_ami()
+    print()
     create_s3_bucket()
+    print()
     make_s3_static() # call make static function to make the bucket static host
+    print()
     s3_url_name = upload_to_s3()
+    print()
     write_to_file(ec2_url_name , s3_url_name)
+    print()
+    upload_run_monitoring()
+    print()
 
     if cleanup:
         cleanup_resources()
@@ -449,8 +500,12 @@ def main():
 if __name__ == '__main__':
     
     console_logging('info', "------------------------------")
-    console_logging('info', "ACS Assignment 1 - Peter Walsh - Script Start")
+    console_logging('info', "\033[1mACS Assignment 1 - Peter Walsh - Script Start\033[0m")
     main()
-    console_logging('info', "ACS Assignment 1 - Peter Walsh - Script End")
+    console_logging('info', "\033[1mACS Assignment 1 - Peter Walsh - Script End\033[0m")
     console_logging('info', "------------------------------")
 
+
+
+# Misc References
+# https://www.kodeclik.com/how-to-bold-text-in-python/
