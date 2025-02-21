@@ -20,6 +20,7 @@ import os
 import string
 import json
 import subprocess
+from time import sleep
 
 ##---------##
 ## Declarations and Global Variables ##
@@ -265,17 +266,13 @@ def get_image():
     except requests.exceptions.RequestException as e:
         console_logging('error', f"Error while downloading image: {e}")
 
-        
-
-    # Avoid redownlaoding the same image if it already exists in the directory - To be removed in final version
-    if img_file_name in os.listdir():
-        print(f"Image already exists in directory")
-        return
-    else:
+   
+    try:
         with open(img_file_name, "wb") as f:
             f.write(img_resource.content)
-
-    pass
+        console_logging('info', f"Image saved as {img_file_name}")
+    except Exception as error:
+        console_logging('error', f"Error while saving image: {error}")
 
 
 # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/put_object.html
@@ -340,22 +337,23 @@ def get_ipt_args():
     global wait_time
     cleanup = False
     wait_time = 0
-    sys.argv[1] = sys.argv[1].upper() # convert to uppercase to avoid case sensitivity
-   
-    if sys.argv[1] == 'TRUE':
-        cleanup = True
-        console_logging('info', "\033[1mCleanup flag detected. Script will remove all resources after script completion\033[0m")
-        if len(sys.argv) > 2 and int(sys.argv[2]) > 0:
-            wait_time = int(sys.argv[2])
-            console_logging('info', f"Wait time set to {wait_time} seconds post script completion")
-        else:
-            wait_time = 60 # default wait time 
-            console_logging('info', f"Wait time set to defualt {wait_time} seconds post script completion")
-    elif sys.argv[1] == 'FALSE':
-        console_logging('info', "No cleanup flag detected. Script will not remove resources after script completion")
+    
+    if len(sys.argv) > 1:
+        sys.argv[1] = sys.argv[1].upper() # convert to uppercase to avoid case sensitivity
+        if sys.argv[1] == 'TRUE':
+            cleanup = True
+            console_logging('info', "\033[1mCleanup flag detected. Script will remove all resources after script completion\033[0m")
+            if len(sys.argv) > 2 and int(sys.argv[2]) > 0:
+                wait_time = int(sys.argv[2])
+                console_logging('info', f"Wait time set to {wait_time} seconds post script completion")
+            else:
+                wait_time = 60 # default wait time 
+                console_logging('info', f"Wait time set to defualt {wait_time} seconds post script completion")
+        elif sys.argv[1] == 'FALSE':
+            console_logging('info', "No cleanup flag detected. Script will not remove resources after script completion")
 
-    else:
-        console_logging('info', "No cleanup flag detected. Script will not remove resources after script completion")
+        else:
+            console_logging('info', "No cleanup flag detected. Script will not remove resources after script completion")
 
 
 
@@ -431,7 +429,7 @@ def upload_run_monitoring():
     try:
         # build connection string
         console_logging('info', f"Building connection string to upload monitoring script")
-
+        # build SCP string and ensure it is placed in :~ home dir on ec2
         con_str = f'scp -o StrictHostKeyChecking=no -i {key_pair_name}.pem {monitoring_file} {ec2_user_name}@{instance_ip_addr}:~'
 
         console_logging('info', f"\033[1mConnection string: {con_str}\033[0m")
@@ -464,6 +462,32 @@ def upload_run_monitoring():
     pass
 
 
+def test_ec2_website():
+    # Test if the EC2 web server is active and reachable - 
+    # Doing this before the monitoring script run to ensure web server will be displayed as running and no errors encountered 
+
+    console_logging('info', f"Testing EC2 website: {instance_ip_addr}")
+    sleep(10) # sleep for 10 seconds to allow the web server to try startup
+    atmp_count = 0
+
+    while atmp_count < 5:
+        try:
+            rsp = requests.get(f"http://{instance_ip_addr}", timeout=5)  # Timeout prevents hanging
+            if rsp.status_code == 200:
+                console_logging('info', "EC2 website is active and reachable")
+                break
+            else:
+                console_logging('info', f"EC2 website is not active - Status: {rsp.status_code} - Retrying in 5 seconds")
+        except Exception as e:
+            console_logging('info', f"Error while trying to reach EC2 website http://{instance_ip_addr}- Retrying in 5 seconds")
+        atmp_count += 1
+        sleep(5)
+    else:
+        console_logging('error', "EC2 website is not active after 5 attempts")
+
+        
+    
+
 # Main function to call the above functions 
 
 def main():
@@ -483,6 +507,8 @@ def main():
     print()
     write_to_file(ec2_url_name , s3_url_name)
     print()
+    test_ec2_website()
+    print()
     upload_run_monitoring()
     print()
 
@@ -498,7 +524,8 @@ def main():
 
 
 if __name__ == '__main__':
-    
+    # clear the console
+    subprocess.run('clear', shell=True)
     console_logging('info', "------------------------------")
     console_logging('info', "\033[1mACS Assignment 1 - Peter Walsh - Script Start\033[0m")
     main()

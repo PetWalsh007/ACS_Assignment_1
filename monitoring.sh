@@ -17,3 +17,16 @@ then
 else
     echo "Web server is NOT running"
 fi
+
+# Aditional funcionallity - 
+echo " "
+echo "Aditional Functionality - PWalsh - 20098070" 
+echo " "
+# Similar to above, using ps to get information about processes, such as memory and CPU usage - while sorting by memory usage before we pipe  head to get the top 4 processes.
+# ps ran with -e for all processes and -o for user defined formatt
+echo "Top Processes by CPU Usage:"
+ps -eo %mem,%cpu,comm --sort=-%mem,-%cpu | head -n 4
+UPTIME=$(uptime -p)
+echo "System Uptime: $UPTIME"
+
+
