@@ -1,0 +1,2 @@
+EC2 URL: http://3.237.45.58
+S3 URL: http://aexvmt-pwalsh.s3-website-us-east-1.amazonaws.com
