@@ -310,24 +310,26 @@ def upload_to_s3():
 
 
 def console_logging(type, m_info, flag=True):
-
+    # remove the \033[1m and \033[0m to remove the bolding for logging 
+    m_logg = m_info.replace('\033[1m', '').replace('\033[0m', '')
+    
     if flag:
         if type == 'info':
             print(f"INFO: {m_info}")
-            logging.info(f"INFO: {m_info}")
+            logging.info(f"INFO: {m_logg}")
         elif type == 'error':
             print(f"ERROR: {m_info}")
-            logging.error(f"ERROR: {m_info}")
+            logging.error(f"ERROR: {m_logg}")
             program_error() # call program error function to clean up resources and exit
         elif type == 'debug':
             print(f"DEBUG: {m_info}")
-            logging.debug(f"DEBUG: {m_info}")
+            logging.debug(f"DEBUG: {m_logg}")
         else:
             print(f"{m_info}")
-            logging.error(f"Error: {m_info}")
+            logging.error(f"Error: {m_logg}")
     elif flag == False:
         print(f"Error: {m_info} - False Flag Captured - Exiting Program State")   
-        logging.error(f"Error: {m_info} - False Flag Captured - Exiting Program State") 
+        logging.error(f"Error: {m_logg} - False Flag Captured - Exiting Program State") 
     pass
 
 

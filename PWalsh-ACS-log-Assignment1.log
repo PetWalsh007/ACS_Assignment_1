@@ -1,4 +1,113 @@
-2025-02-19 15:52:20,796 - Found credentials in shared credentials file: ~/.aws/credentials
-2025-02-19 15:52:20,862 - ACS Assignment 1 - Peter Walsh - Script Start
-2025-02-19 15:53:01,384 - Found credentials in shared credentials file: ~/.aws/credentials
-2025-02-19 15:53:01,449 - ACS Assignment 1 - Peter Walsh - Script Start
+2025-02-21 23:59:41,471 - Found credentials in shared credentials file: ~/.aws/credentials
+2025-02-21 23:59:41,539 - INFO: ------------------------------
+2025-02-21 23:59:41,539 - INFO: ACS Assignment 1 - Peter Walsh - Script Start
+2025-02-21 23:59:41,539 - INFO: Downloading image from https://setuacsresources.s3-eu-west-1.amazonaws.com/image.jpeg
+2025-02-21 23:59:41,654 - INFO: Image downloaded successfully
+2025-02-21 23:59:41,656 - INFO: Image saved as image_SETU_ACS.jpeg
+2025-02-21 23:59:41,657 - INFO: Creating EC2 instance with tag name: 210225235941_PWalsh_ACS_Assignment1
+2025-02-21 23:59:43,168 - INFO: Waiting for instance to be running
+2025-02-21 23:59:58,822 - INFO: Instance ID: i-0cf865ee3324625a5
+2025-02-21 23:59:58,823 - INFO: Instance IP Address: 44.197.228.193
+2025-02-21 23:59:58,823 - INFO: Instance State: running
+2025-02-21 23:59:58,823 - INFO: Instance Key Pair: First_key_pair_ACS
+2025-02-21 23:59:58,823 - INFO: Instance Security Group: sg-0c460c49e45787055
+2025-02-21 23:59:58,823 - INFO: Instance is now available at http://44.197.228.193
+2025-02-21 23:59:58,823 - INFO: Begining to create new AMI with tag name: PW-2025-02-21235941
+2025-02-21 23:59:59,683 - INFO: AMI ID: ami-0e6613d874e93fb96
+2025-02-21 23:59:59,830 - INFO: AMI State: pending
+2025-02-21 23:59:59,830 - INFO: Creating S3 bucket: 6bvkzi-pwalsh
+2025-02-22 00:00:00,320 - INFO: S3 bucket 6bvkzi-pwalsh created successfully
+2025-02-22 00:00:00,321 - INFO: Removing public access block from 6bvkzi-pwalsh
+2025-02-22 00:00:00,933 - INFO: Making 6bvkzi-pwalsh a static website host
+2025-02-22 00:00:01,082 - INFO: 6bvkzi-pwalsh is now a static website host
+2025-02-22 00:00:01,082 - INFO: Uploading image file to 6bvkzi-pwalsh
+2025-02-22 00:00:01,334 - INFO: Image file uploaded to 6bvkzi-pwalsh
+2025-02-22 00:00:01,334 - INFO: Uploading index.html to 6bvkzi-pwalsh
+2025-02-22 00:00:01,546 - INFO: index.html uploaded to 6bvkzi-pwalsh
+2025-02-22 00:00:01,546 - INFO: Website Available at http://6bvkzi-pwalsh.s3-website-us-east-1.amazonaws.com
+2025-02-22 00:00:01,546 - INFO: Writing URLs to file: pwalsh-websites.txt
+2025-02-22 00:00:01,546 - INFO: URLs written to file: pwalsh-websites.txt
+2025-02-22 00:00:01,547 - INFO: Testing EC2 website: 44.197.228.193
+2025-02-22 00:00:11,650 - INFO: Error while trying to reach EC2 website http://44.197.228.193- Retrying in 5 seconds
+2025-02-22 00:00:16,745 - INFO: Error while trying to reach EC2 website http://44.197.228.193- Retrying in 5 seconds
+2025-02-22 00:00:21,841 - INFO: Error while trying to reach EC2 website http://44.197.228.193- Retrying in 5 seconds
+2025-02-22 00:00:26,936 - INFO: Error while trying to reach EC2 website http://44.197.228.193- Retrying in 5 seconds
+2025-02-22 00:00:32,124 - INFO: EC2 website is active and reachable
+2025-02-22 00:00:32,125 - INFO: Uploading monitoring script to instance: i-0cf865ee3324625a5
+2025-02-22 00:00:32,125 - INFO: Building connection string to upload monitoring script
+2025-02-22 00:00:32,125 - INFO: Connection string: scp -o StrictHostKeyChecking=no -i First_key_pair_ACS.pem monitoring.sh ec2-user@44.197.228.193:~
+2025-02-22 00:00:32,125 - INFO: Uploading monitoring script to instance: i-0cf865ee3324625a5
+2025-02-22 00:00:34,516 - INFO: Running monitoring script on instance: i-0cf865ee3324625a5
+2025-02-22 00:00:34,517 - INFO: Executing monitoring.sh on instance: i-0cf865ee3324625a5
+2025-02-22 00:00:34,517 - INFO: Connection string: ssh -i First_key_pair_ACS.pem ec2-user@44.197.228.193 "chmod +x monitoring.sh && ./monitoring.sh"
+2025-02-22 00:00:35,844 - INFO: Uploading logs to S3 bucket
+2025-02-22 00:00:36,296 - INFO: creation_logs.txt uploaded to 6bvkzi-pwalsh
+2025-02-22 00:00:36,296 - INFO: Logs available at http://6bvkzi-pwalsh.s3-website-us-east-1.amazonaws.com/creation_logs.txt
+2025-02-22 00:00:36,297 - INFO: ACS Assignment 1 - Peter Walsh - Script End
+2025-02-22 00:00:36,297 - INFO: ------------------------------
+2025-02-22 00:00:56,908 - Found credentials in shared credentials file: ~/.aws/credentials
+2025-02-22 00:00:56,981 - INFO: ------------------------------
+2025-02-22 00:00:56,981 - INFO: ACS Assignment 1 - Peter Walsh - Script Start
+2025-02-22 00:00:56,981 - INFO: Cleanup flag detected. Script will remove all resources after script completion
+2025-02-22 00:00:56,981 - INFO: Wait time set to 15 seconds post script completion
+2025-02-22 00:00:56,981 - INFO: Downloading image from https://setuacsresources.s3-eu-west-1.amazonaws.com/image.jpeg
+2025-02-22 00:00:57,063 - INFO: Image downloaded successfully
+2025-02-22 00:00:57,064 - INFO: Image saved as image_SETU_ACS.jpeg
+2025-02-22 00:00:57,064 - INFO: Creating EC2 instance with tag name: 220225000056_PWalsh_ACS_Assignment1
+2025-02-22 00:00:58,521 - INFO: Waiting for instance to be running
+2025-02-22 00:01:14,147 - INFO: Instance ID: i-06b604bb88a5c9e22
+2025-02-22 00:01:14,147 - INFO: Instance IP Address: 3.237.45.58
+2025-02-22 00:01:14,147 - INFO: Instance State: running
+2025-02-22 00:01:14,147 - INFO: Instance Key Pair: First_key_pair_ACS
+2025-02-22 00:01:14,147 - INFO: Instance Security Group: sg-0c460c49e45787055
+2025-02-22 00:01:14,148 - INFO: Instance is now available at http://3.237.45.58
+2025-02-22 00:01:14,148 - INFO: Begining to create new AMI with tag name: PW-2025-02-22000056
+2025-02-22 00:01:14,978 - INFO: AMI ID: ami-01d04e38dd9b045b3
+2025-02-22 00:01:15,150 - INFO: AMI State: pending
+2025-02-22 00:01:15,150 - INFO: Creating S3 bucket: aexvmt-pwalsh
+2025-02-22 00:01:15,648 - INFO: S3 bucket aexvmt-pwalsh created successfully
+2025-02-22 00:01:15,648 - INFO: Removing public access block from aexvmt-pwalsh
+2025-02-22 00:01:16,286 - INFO: Making aexvmt-pwalsh a static website host
+2025-02-22 00:01:16,445 - INFO: aexvmt-pwalsh is now a static website host
+2025-02-22 00:01:16,445 - INFO: Uploading image file to aexvmt-pwalsh
+2025-02-22 00:01:16,660 - INFO: Image file uploaded to aexvmt-pwalsh
+2025-02-22 00:01:16,660 - INFO: Uploading index.html to aexvmt-pwalsh
+2025-02-22 00:01:16,867 - INFO: index.html uploaded to aexvmt-pwalsh
+2025-02-22 00:01:16,867 - INFO: Website Available at http://aexvmt-pwalsh.s3-website-us-east-1.amazonaws.com
+2025-02-22 00:01:16,867 - INFO: Writing URLs to file: pwalsh-websites.txt
+2025-02-22 00:01:16,867 - INFO: URLs written to file: pwalsh-websites.txt
+2025-02-22 00:01:16,867 - INFO: Testing EC2 website: 3.237.45.58
+2025-02-22 00:01:26,961 - INFO: Error while trying to reach EC2 website http://3.237.45.58- Retrying in 5 seconds
+2025-02-22 00:01:32,054 - INFO: Error while trying to reach EC2 website http://3.237.45.58- Retrying in 5 seconds
+2025-02-22 00:01:37,148 - INFO: Error while trying to reach EC2 website http://3.237.45.58- Retrying in 5 seconds
+2025-02-22 00:01:42,335 - INFO: EC2 website is active and reachable
+2025-02-22 00:01:42,335 - INFO: Uploading monitoring script to instance: i-06b604bb88a5c9e22
+2025-02-22 00:01:42,335 - INFO: Building connection string to upload monitoring script
+2025-02-22 00:01:42,335 - INFO: Connection string: scp -o StrictHostKeyChecking=no -i First_key_pair_ACS.pem monitoring.sh ec2-user@3.237.45.58:~
+2025-02-22 00:01:42,335 - INFO: Uploading monitoring script to instance: i-06b604bb88a5c9e22
+2025-02-22 00:01:44,677 - INFO: Running monitoring script on instance: i-06b604bb88a5c9e22
+2025-02-22 00:01:44,678 - INFO: Executing monitoring.sh on instance: i-06b604bb88a5c9e22
+2025-02-22 00:01:44,678 - INFO: Connection string: ssh -i First_key_pair_ACS.pem ec2-user@3.237.45.58 "chmod +x monitoring.sh && ./monitoring.sh"
+2025-02-22 00:01:45,957 - INFO: Uploading logs to S3 bucket
+2025-02-22 00:01:46,394 - INFO: creation_logs.txt uploaded to aexvmt-pwalsh
+2025-02-22 00:01:46,394 - INFO: Logs available at http://aexvmt-pwalsh.s3-website-us-east-1.amazonaws.com/creation_logs.txt
+2025-02-22 00:01:46,394 - INFO: Cleaning up resources after 15 seconds
+2025-02-22 00:01:53,894 - INFO: Cleaning up resources in 8.0 seconds
+2025-02-22 00:02:01,396 - INFO: Cleaning up resources in progress
+2025-02-22 00:02:01,396 - INFO: Emptying bucket: aexvmt-pwalsh
+2025-02-22 00:02:01,878 - INFO: Deleted object: creation_logs.txt
+2025-02-22 00:02:01,987 - INFO: Deleted object: image_SETU_ACS_pwalsh.jpeg
+2025-02-22 00:02:02,096 - INFO: Deleted object: index.html
+2025-02-22 00:02:02,097 - INFO: Bucket aexvmt-pwalsh is now empty
+2025-02-22 00:02:02,097 - INFO: Deleting bucket: aexvmt-pwalsh
+2025-02-22 00:02:02,586 - INFO: Deleted bucket: aexvmt-pwalsh
+2025-02-22 00:02:02,586 - INFO: Terminating instance: i-06b604bb88a5c9e22
+2025-02-22 00:02:48,776 - INFO: Terminated instance: i-06b604bb88a5c9e22
+2025-02-22 00:02:48,777 - INFO: Deregistering AMI: ami-01d04e38dd9b045b3
+2025-02-22 00:02:49,351 - INFO: Deregistered AMI: ami-01d04e38dd9b045b3
+2025-02-22 00:02:49,351 - INFO: Cleanup complete
+2025-02-22 00:02:49,351 - INFO: Status of removal post cleanup job: s3_bucket - Success
+2025-02-22 00:02:49,351 - INFO: Status of removal post cleanup job: ec2_instance - Success
+2025-02-22 00:02:49,351 - INFO: Status of removal post cleanup job: ami - Success
+2025-02-22 00:02:49,351 - INFO: ACS Assignment 1 - Peter Walsh - Script End
+2025-02-22 00:02:49,351 - INFO: ------------------------------
