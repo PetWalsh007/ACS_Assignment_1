@@ -66,6 +66,9 @@ monitoring_file = 'monitoring.sh'
 
 ec2_user_name = 'ec2-user'
 
+# path of the script
+script_path = os.path.dirname(os.path.realpath(__file__))
+
 ##---------##
 
 
@@ -143,17 +146,21 @@ def create_ami():
     console_logging('info', f"Begining to create new AMI with tag name: {created_ami_name}")
 
     try:
-        response = ec2_client.create_image(TagSpecifications=[{
-                                                            'ResourceType': 'image',
-                                                            'Tags':[
-                                                                {
-                                                                    'Key': 'Name','Value': created_ami_name
-                                                                },
-                                                            ]
-                                                        }],
-        Description='An AMI for ACS Assignment 1 - Peter Walsh',
-        InstanceId = instance[0].id,
-        Name = created_ami_name,
+        response = ec2_client.create_image(
+            TagSpecifications=[
+            {
+                'ResourceType': 'image',
+                'Tags': [
+                {
+                    'Key': 'Name',
+                    'Value': created_ami_name
+                },
+                ]
+            }
+            ],
+            Description='An AMI for ACS Assignment 1 - Peter Walsh',
+            InstanceId=instance[0].id,
+            Name=created_ami_name,
         )
         created_ami_id = response['ImageId']
         console_logging('info', f"AMI ID: {response['ImageId']}")
@@ -161,11 +168,7 @@ def create_ami():
         console_logging('error', f"Error while creating AMI: {error}")
 
     # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2/client/describe_images.html
-    
-    response = ec2_client.describe_images(ImageIds=[
-                                                created_ami_id,
-                                            ],
-    )
+    response = ec2_client.describe_images(ImageIds=[created_ami_id,],)
 
  
     try:
@@ -451,7 +454,7 @@ def upload_run_monitoring():
         # build connection string
         console_logging('info', f"Building connection string to upload monitoring script")
         # build SCP string and ensure it is placed in :~ home dir on ec2
-        con_str = f'scp -o StrictHostKeyChecking=no -i {key_pair_name}.pem {monitoring_file} {ec2_user_name}@{instance_ip_addr}:~'
+        con_str = f'scp -o StrictHostKeyChecking=no -i {script_path}/{key_pair_name}.pem {script_path}/{monitoring_file} {ec2_user_name}@{instance_ip_addr}:~'
 
         console_logging('info', f"\033[1mConnection string: {con_str}\033[0m")
 
@@ -470,7 +473,7 @@ def upload_run_monitoring():
         console_logging('info', f"Executing {monitoring_file} on instance: {instance[0].id}")
         
         # chmod the script to make it executable and run it with ./
-        con_str = f'ssh -i {key_pair_name}.pem {ec2_user_name}@{instance_ip_addr} "chmod +x {monitoring_file} && ./{monitoring_file}"'
+        con_str = f'ssh -i {script_path}/{key_pair_name}.pem {ec2_user_name}@{instance_ip_addr} "chmod +x {monitoring_file} && ./{monitoring_file}"'
 
         console_logging('info', f"\033[1mConnection string: {con_str}\033[0m")
 

@@ -28,5 +28,7 @@ echo "Top Processes by CPU Usage:"
 ps -eo %mem,%cpu,comm --sort=-%mem,-%cpu | head -n 4
 UPTIME=$(uptime -p)
 echo "System Uptime: $UPTIME"
-
+# use netstat to get information about network connections but only show top 5 connections
+echo "Top 5 Network Connections:"
+netstat -tuln | head -n 5
 
