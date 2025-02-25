@@ -102,13 +102,21 @@ def get_new_ami():
         fetched_images = ec2_client.describe_images(
             Owners=['amazon'],
             Filters=[
-                {'Name': 'name', 'Values': ['al2023-ami-*']}  # Matches Amazon Linux 2023 AMIs as per https://docs.aws.amazon.com/linux/al2023/ug/naming-and-versioning.html 
+                {'Name': 'name', 'Values': ['al2023-ami-*']}, # Matches Amazon Linux 2023 AMIs as per https://docs.aws.amazon.com/linux/al2023/ug/naming-and-versioning.html 
+                {'Name': 'virtualization-type', 'Values': ['hvm']},
+                {'Name': 'ena-support', 'Values': ['true']},
+                {'Name': 'architecture', 'Values': ['x86_64']},
+                {'Name': 'root-device-type', 'Values': ['ebs']},
             ]
         )
         
         # Sort images by CreationDate to get the latest one
-        fetched_images['Images'].sort(key=lambda x: x['CreationDate'], reverse=True) # using lambda function to sort by creation date 
-        latest_image = fetched_images['Images'][0]
+        if len(fetched_images['Images']) == 0:
+            print("No Amazon Linux 2023 AMIs found.")
+            return
+        else:
+            fetched_images['Images'].sort(key=lambda x: x['CreationDate'], reverse=True) # using lambda function to sort by creation date 
+            latest_image = fetched_images['Images'][0]
 
         default_ami = ami_id
         if latest_image['ImageId'] != default_ami:
@@ -410,8 +418,12 @@ def get_ipt_args():
         if sys.argv[1] == 'TRUE':
             cleanup = True
             console_logging('info', "\033[1mCleanup flag detected. Script will remove all resources after script completion\033[0m")
-            if len(sys.argv) > 2 and int(sys.argv[2]) > 0:
-                wait_time = int(sys.argv[2])
+            if len(sys.argv) > 2:
+                try:
+               
+                    wait_time = int(sys.argv[2])
+                except Exception as error:
+                    console_logging('info', f"Error while converting wait time to int: {error}")
                 console_logging('info', f"Wait time set to {wait_time} seconds post script completion")
             else:
                 wait_time = 60 # default wait time 
