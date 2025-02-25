@@ -7,6 +7,14 @@
 Please see github readme.md for notes on this assignment:
 https://github.com/PetWalsh007/ACS_Assignment_1
 
+When running this on a linux terminal use the following command to run the script:
+
+                        python3 acs_ass1.py <cleanup_flag> <wait_time>
+                        
+where cleanup_flag is either TRUE or FALSE and wait_time is the time in seconds to wait before cleaning up resources
+
+Without these flags, the script defaults to no cleanup and any instances or buckets created will remain active.
+
 '''
 
 
@@ -54,7 +62,7 @@ sg_id = 'sg-0c460c49e45787055'
 # Instance key pair name - created and used for this assignment
 key_pair_name = 'First_key_pair_ACS'
 
-# Instance ami image id - Amazon Linux 2023 
+# Instance ami image id - Amazon Linux 2023 - this is the default ami id for this assignment but the code checks for the latest ami id
 ami_id = 'ami-053a45fff0a704a47'
 
 # tag name for the instance - # time will allow us to sort by name using timestamp
@@ -69,8 +77,45 @@ ec2_user_name = 'ec2-user'
 # path of the script
 script_path = os.path.dirname(os.path.realpath(__file__))
 
+
+wait_time = 60 # default wait time  
+
+script_completion_tracker = {'ec2_instance': False, 's3_bucket': False, 'ami': False, 's3_upload': False} # tracker for script completion used in cleanup function
+
 ##---------##
 
+
+
+def get_new_ami():
+    # Function to get the latest AMI ID for Amazon Linux 2023 - this is part of the additional functionality
+    # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2/client/describe_images.html
+
+    global ami_id
+    try:
+        console_logging('info', f"Getting latest AMI ID for Amazon Linux 2023")
+        all_images = ec2_client.describe_images(
+        filters=[
+            {
+                'Name': 'owner-alias',
+                'Values': ['amazon'],
+            },]
+        
+        )
+        
+        for image in all_images['Images']:
+            if image['Name'] == 'amzn2-ami-hvm-gp2':
+                ami_id = image['ImageId']
+                console_logging('info', f"Latest AMI ID: {ami_id}")
+                break
+
+        pass
+    except Exception as error:
+        console_logging('error', f"Error while getting new AMI: {error}")
+        pass
+
+    
+    
+    
 
 def create_ec2_instance():
     console_logging('info', f"Creating \033[1mEC2 instance\033[0m with tag name: \033[1m{tag_name}\033[0m")
@@ -118,6 +163,7 @@ def create_ec2_instance():
     ec2_instance_web_url = f"http://{instance_ip_addr}"
     console_logging('info', f"Instance is now available at \033[1m{ec2_instance_web_url}\033[0m")
 
+    script_completion_tracker['ec2_instance'] = True
     return ec2_instance_web_url
     
 
@@ -168,7 +214,11 @@ def create_ami():
         console_logging('error', f"Error while creating AMI: {error}")
 
     # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2/client/describe_images.html
-    response = ec2_client.describe_images(ImageIds=[created_ami_id,],)
+    try:
+        response = ec2_client.describe_images(ImageIds=[created_ami_id,],)
+        console_logging('info', f"AMI ID: {response['Images'][0]['ImageId']}")
+    except Exception as error:
+        console_logging('error', f"Error while getting AMI ID: {error}")
 
  
     try:
@@ -177,7 +227,7 @@ def create_ami():
     except Exception as error:
         console_logging('error', f"Error while getting AMI state: {error}")
 
-
+    script_completion_tracker['ami'] = True
     pass
 
 # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/create_bucket.html
@@ -216,7 +266,7 @@ def create_s3_bucket():
     except Exception as error:  
         console_logging('error', f"Error while updating bucket policy: {error}")
 
-
+    script_completion_tracker['s3_bucket'] = True
 
     pass
 
@@ -306,6 +356,7 @@ def upload_to_s3():
     s3_website_url = f"http://{bucket_name_s3}.s3-website-us-east-1.amazonaws.com"
     console_logging('info', f"Website Available at \033[1m{s3_website_url}\033[0m")
 
+    script_completion_tracker['s3_upload'] = True
     return s3_website_url
 
     
@@ -340,9 +391,9 @@ def get_ipt_args():
 # Function to take the input arguments from the user to determine if cleanup is required after the script has run
 
     global cleanup
-    global wait_time
     cleanup = False
-    wait_time = 0
+    global wait_time
+    
     
     if len(sys.argv) > 1:
         sys.argv[1] = sys.argv[1].upper() # convert to uppercase to avoid case sensitivity
@@ -369,6 +420,7 @@ def cleanup_resources():
     # Note - flag here is set to false to avoid the program error function from being called recursively
     global cleanup_jobs
     cleanup_jobs ={ 's3_bucket': False, 'ec2_instance': False, 'ami': False}
+    
 
     console_logging('info', f"Cleaning up resources after {wait_time} seconds")
     time.sleep(wait_time/2)
@@ -376,46 +428,62 @@ def cleanup_resources():
     time.sleep(wait_time/2)
     console_logging('info', "Cleaning up resources in progress")
     # Empty S3 bucket
-    console_logging('info', f"Emptying bucket: {bucket_name_s3}")
-    try:
-        bucket = s3.Bucket(bucket_name_s3)
-        for obj in bucket.objects.all():
-            try:
-                obj.delete()
-                console_logging('info', f"Deleted object: {obj.key}")
-            except Exception as error:
-                console_logging('error', f"Error while deleting object: {error}", False)
-        console_logging('info', f"Bucket {bucket_name_s3} is now empty")
-    except Exception as error:
-        console_logging('error', f"Error while emptying bucket: {error}", False)
+    if script_completion_tracker['s3_upload'] == True:
+        try:
+            console_logging('info', f"Emptying bucket: {bucket_name_s3}")
+            bucket = s3.Bucket(bucket_name_s3)
+            for obj in bucket.objects.all():
+                try:
+                    obj.delete()
+                    console_logging('info', f"Deleted object: {obj.key}")
+                except Exception as error:
+                    console_logging('error', f"Error while deleting object: {error}", False)
+            console_logging('info', f"Bucket {bucket_name_s3} is now empty")
+        except Exception as error:
+            console_logging('error', f"Error while emptying bucket: {error}", False)
+    else:
+        console_logging('info', f"Skipping emptying bucket: {bucket_name_s3} - No objects to delete", False)
     
     # Delete S3 bucket
-    console_logging('info', f"Deleting bucket: {bucket_name_s3}")
-    try:
-        s3_client.delete_bucket(Bucket=bucket_name_s3)
-        console_logging('info', f"Deleted bucket: {bucket_name_s3}")
+    if script_completion_tracker['s3_bucket'] == True:
+        try:
+            console_logging('info', f"Deleting bucket: {bucket_name_s3}")
+            s3_client.delete_bucket(Bucket=bucket_name_s3)
+            console_logging('info', f"Deleted bucket: {bucket_name_s3}")
+            cleanup_jobs['s3_bucket'] = True
+        except Exception as error:
+            console_logging('error', f"Error while deleting bucket: {error}", False)
+    else:
+        console_logging('info', f"Skipping deleting bucket: {bucket_name_s3} - Bucket does not exist", False)
         cleanup_jobs['s3_bucket'] = True
-    except Exception as error:
-        console_logging('error', f"Error while deleting bucket: {error}", False)
 
     # Terminate EC2 instance
-    console_logging('info', f"Terminating instance: {instance[0].id}")
-    try:
-        instance[0].terminate()
-        instance[0].wait_until_terminated()
-        console_logging('info', f"Terminated instance: {instance[0].id}")
+    if script_completion_tracker['ec2_instance'] == True:
+        try:
+            console_logging('info', f"Terminating instance: {instance[0].id}")
+            instance[0].terminate()
+            instance[0].wait_until_terminated()
+            console_logging('info', f"Terminated instance: {instance[0].id}")
+            cleanup_jobs['ec2_instance'] = True
+        except Exception as error:
+            console_logging('error', f"Error while terminating instance: {error}", False)
+    else:
+        console_logging('info', f"Skipping terminating instance: {instance[0].id} - Instance does not exist", False)
         cleanup_jobs['ec2_instance'] = True
-    except Exception as error:
-        console_logging('error', f"Error while terminating instance: {error}", False)
 
-    # Deregister AMI - https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2/client/deregister_image.html 
-    console_logging('info', f"Deregistering AMI: {created_ami_id}")
-    try:
-        ec2_client.deregister_image(ImageId=created_ami_id)
-        console_logging('info', f"Deregistered AMI: {created_ami_id}")
+
+    if script_completion_tracker['ami'] == True:
+        # Deregister AMI - https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2/client/deregister_image.html 
+        try:
+            console_logging('info', f"Deregistering AMI: {created_ami_id}")
+            ec2_client.deregister_image(ImageId=created_ami_id)
+            console_logging('info', f"Deregistered AMI: {created_ami_id}")
+            cleanup_jobs['ami'] = True
+        except Exception as error:
+            console_logging('error', f"Error while deregistering AMI: {error}", False)
+    else:
+        console_logging('info', f"Skipping deregistering AMI: {created_ami_id} - AMI does not exist", False)
         cleanup_jobs['ami'] = True
-    except Exception as error:
-        console_logging('error', f"Error while deregistering AMI: {error}", False)
 
     
     console_logging('info', "Cleanup complete")
@@ -541,35 +609,49 @@ def upload_logs(url):
     console_logging('info', f"Logs available at \033[1m{s3_log_url}\033[0m")
 
 
+
+def cloudwatch_usage():
+    # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/cloudwatch.html
+    cloudwatch = boto3.client('cloudwatch')
+
+
+
+    pass
     
 
 # Main function to call the above functions 
 
 def main():
-    get_ipt_args()
+    console_logging('info', "Starting script") # Console logging custom function is part addressing of Non functional issues
     print()
-    get_image()
+    get_ipt_args() # Part of Additional Functionality 
     print()
-    ec2_url_name = create_ec2_instance()
+    get_new_ami() # Part of Additional Functionality
     print()
-    create_ami()
+    get_image() # Part of Core Requirement 5
     print()
-    create_s3_bucket()
+    ec2_url_name = create_ec2_instance()  # Core Requirement 1, 2 and 3
     print()
-    make_s3_static() # call make static function to make the bucket static host
+    create_ami()    # Core Requirement 4
     print()
-    s3_url_name = upload_to_s3()
+    create_s3_bucket()  # Core Requirement 5
     print()
-    write_to_file(ec2_url_name , s3_url_name)
+    make_s3_static()  # Core Requirement 5
     print()
-    test_ec2_website()
+    s3_url_name = upload_to_s3() # Core Requirement 5
     print()
-    upload_run_monitoring()
+    write_to_file(ec2_url_name , s3_url_name) # Core Requirement 6
     print()
-    upload_logs(s3_url_name)
+    test_ec2_website()  # Part of Additional Functionality
+    print()
+    upload_run_monitoring() # Core Requirement 7
+    print()
+    upload_logs(s3_url_name) # Part of Additional Functionality
+    print()
+    cloudwatch_usage() # Part of Additional Functionality
     print()
     if cleanup:
-        cleanup_resources()
+        cleanup_resources() # Part of Additional Functionality
         print()
         for job in cleanup_jobs:
             console_logging('info', f"Status of removal post cleanup job: {job} - {'Success' if cleanup_jobs[job] else 'Failed'}")
