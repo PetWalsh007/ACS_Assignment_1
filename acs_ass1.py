@@ -65,6 +65,8 @@ key_pair_name = 'First_key_pair_ACS'
 # Instance ami image id - Amazon Linux 2023 - this is the default ami id for this assignment but the code checks for the latest ami id
 ami_id = 'ami-053a45fff0a704a47'
 
+instance_type = 't2.nano'
+
 # tag name for the instance - # time will allow us to sort by name using timestamp
 tag_name = f'{time.strftime("%d%m%y%H%M%S")}_PWalsh_ACS_Assignment1' 
 current_time = time.strftime("%Y-%m-%d%H%M%S")
@@ -89,36 +91,44 @@ script_completion_tracker = {'ec2_instance': False, 's3_bucket': False, 'ami': F
 def get_new_ami():
     # Function to get the latest AMI ID for Amazon Linux 2023 - this is part of the additional functionality
     # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2/client/describe_images.html
+    # https://docs.aws.amazon.com/linux/al2023/ug/what-is-amazon-linux.html
 
     global ami_id
+
+
     try:
-        console_logging('info', f"Getting latest AMI ID for Amazon Linux 2023")
-        all_images = ec2_client.describe_images(
-        filters=[
-            {
-                'Name': 'owner-alias',
-                'Values': ['amazon'],
-            },]
+        print("Fetching the latest AMI ID for Amazon Linux 2023...")
         
+        fetched_images = ec2_client.describe_images(
+            Owners=['amazon'],
+            Filters=[
+                {'Name': 'name', 'Values': ['al2023-ami-*']}  # Matches Amazon Linux 2023 AMIs as per https://docs.aws.amazon.com/linux/al2023/ug/naming-and-versioning.html 
+            ]
         )
         
-        for image in all_images['Images']:
-            if image['Name'] == 'amzn2-ami-hvm-gp2':
-                ami_id = image['ImageId']
-                console_logging('info', f"Latest AMI ID: {ami_id}")
-                break
+        # Sort images by CreationDate to get the latest one
+        fetched_images['Images'].sort(key=lambda x: x['CreationDate'], reverse=True) # using lambda function to sort by creation date 
+        latest_image = fetched_images['Images'][0]
 
-        pass
+        default_ami = ami_id
+        if latest_image['ImageId'] != default_ami:
+            console_logging('info', f"Default AMI ID: {default_ami} - Latest AMI ID: {latest_image['ImageId']} - Updating to latest AMI ID")
+            ami_id = latest_image['ImageId']
+        else:
+            console_logging('info', f"Default AMI ID: {default_ami} - Latest AMI ID: {latest_image['ImageId']} - No update required")
+
+
+
     except Exception as error:
-        console_logging('error', f"Error while getting new AMI: {error}")
-        pass
+        print(f"Error retrieving AMI: {error}")
+    
 
     
     
     
 
 def create_ec2_instance():
-    console_logging('info', f"Creating \033[1mEC2 instance\033[0m with tag name: \033[1m{tag_name}\033[0m")
+    console_logging('info', f"Creating \033[1mEC2 instance\033[0m with tag name: \033[1m{tag_name}\033[0m and AMI ID: \033[1m{ami_id}\033[0m")
     global instance_ip_addr
     global instance
     
@@ -128,7 +138,7 @@ def create_ec2_instance():
             ImageId = ami_id,
             MinCount=1,
             MaxCount=1,
-            InstanceType = 't2.nano',
+            InstanceType = instance_type,
             KeyName = key_pair_name,
             SecurityGroupIds = [sg_id],
             TagSpecifications=[
@@ -468,7 +478,7 @@ def cleanup_resources():
         except Exception as error:
             console_logging('error', f"Error while terminating instance: {error}", False)
     else:
-        console_logging('info', f"Skipping terminating instance: {instance[0].id} - Instance does not exist", False)
+        console_logging('info', f"Skipping terminating instance: Instance does not exist", False)
         cleanup_jobs['ec2_instance'] = True
 
 
@@ -482,7 +492,7 @@ def cleanup_resources():
         except Exception as error:
             console_logging('error', f"Error while deregistering AMI: {error}", False)
     else:
-        console_logging('info', f"Skipping deregistering AMI: {created_ami_id} - AMI does not exist", False)
+        console_logging('info', f"Skipping deregistering AMI: AMI does not exist", False)
         cleanup_jobs['ami'] = True
 
     
@@ -558,8 +568,8 @@ def test_ec2_website():
     # Test if the EC2 web server is active and reachable - 
     # Doing this before the monitoring script run to ensure web server will be displayed as running and no errors encountered 
 
-    console_logging('info', f"Testing EC2 website: {instance_ip_addr}")
-    sleep(10) # sleep for 10 seconds to allow the web server to try startup
+    console_logging('info', f"Testing EC2 website: {instance_ip_addr} - Allowing 20 seconds for startup")
+    sleep(20) # sleep for 20 seconds to allow the web server to try startup
     atmp_count = 0
 
     # give the web server 5 attempts to start up - this equates to 25 seconds 
