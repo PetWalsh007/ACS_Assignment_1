@@ -26,6 +26,7 @@ This repository contains the code for **Assessment 1** of Automated Cloud Servic
    - Provides links to both generated URLs  
 7. **Monitoring Script Deployment**
    - `monitoring.sh` is copied to the instance using SCP  
+   - Monitoring script updated with extra functions
 
 ## Non-Functional Enhancements
 1. **Error Handling**  
@@ -36,7 +37,13 @@ This repository contains the code for **Assessment 1** of Automated Cloud Servic
 3. **Code Documentation**
    - Inline comments (`#`) explaining code flow and purpose  
    - Additional explanations within the script  
+   - Referencing Links added in code 
 
-## Additional Functionality (TBD)
+## Additional Functionality
 1. **Auto Cleanup**
-   - Added dynamic argument handling to check for cmd args to allow for auto cleanup of tests
+   - Added dynamic cmd line argument handling to check for cmd args to allow for auto cleanup of tests
+   - Cleanup runs automatically on error in program with status output for each cleaning job
+   - Uploads of log file to bucket
+   - Function to test if ther EC2 is active and also double to send network traffic automatically for cloudWatch
+   - Added function to fetch latest amazon linux AMI that can work with a T2.Nano
+   - CloudWatch functionality added

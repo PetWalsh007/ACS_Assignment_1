@@ -24,6 +24,9 @@ echo "Aditional Functionality - PWalsh - 20098070"
 echo " "
 # Similar to above, using ps to get information about processes, such as memory and CPU usage - while sorting by memory usage before we pipe  head to get the top 4 processes.
 # ps ran with -e for all processes and -o for user defined formatt
+# We can get the public IP address of the instance using the metadata service as used above in the provided code.
+PUBLIC_IP=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/public-ipv4)
+echo "Public IP Address: $PUBLIC_IP"
 echo "Top Processes by Memory and CPU Usage:"
 ps -eo %mem,%cpu,comm --sort=-%mem,-%cpu | head -n 4
 UPTIME=$(uptime -p)

@@ -29,7 +29,7 @@ import string
 import json
 import subprocess
 from time import sleep
-
+import datetime
 ##---------##
 ## Declarations and Global Variables ##
 # https://docs.python.org/3/library/logging.html - 
@@ -576,12 +576,14 @@ def upload_run_monitoring():
     pass
 
 
-def test_ec2_website():
+def test_ec2_website(sleep_flag):
     # Test if the EC2 web server is active and reachable - 
     # Doing this before the monitoring script run to ensure web server will be displayed as running and no errors encountered 
+    if sleep_flag:
+        sleep_time = 25
+        console_logging('info', f"Testing EC2 website: {instance_ip_addr} - Allowing {sleep_time} seconds for startup")
+        sleep(sleep_time) # sleep for 20 seconds to allow the web server to try startup
 
-    console_logging('info', f"Testing EC2 website: {instance_ip_addr} - Allowing 20 seconds for startup")
-    sleep(20) # sleep for 20 seconds to allow the web server to try startup
     atmp_count = 0
 
     # give the web server 5 attempts to start up - this equates to 25 seconds 
@@ -590,15 +592,30 @@ def test_ec2_website():
             rsp = requests.get(f"http://{instance_ip_addr}", timeout=5)  # Timeout prevents hanging
             if rsp.status_code == 200:
                 console_logging('info', "EC2 website is active and reachable")
-                break
+                if sleep_flag:
+                    return
             else:
-                console_logging('info', f"EC2 website is not active - Status: {rsp.status_code} - Retrying in 5 seconds")
+                if sleep_flag:
+                    console_logging('info', f"EC2 website is not active - Status: {rsp.status_code} - Retrying in 5 seconds")
+                else:
+                    console_logging('info', f"EC2 website error - Status: {rsp.status_code}")
         except Exception as e:
-            console_logging('info', f"Error while trying to reach EC2 website http://{instance_ip_addr}- Retrying in 5 seconds")
+            if sleep_flag:
+                console_logging('info', f"Error while trying to reach EC2 website http://{instance_ip_addr}- Retrying in 5 seconds")
+            else:
+                console_logging('info', f"Retrying to reach EC2 website http://{instance_ip_addr}")
+
+
         atmp_count += 1
-        sleep(5)
-    else:
+        if sleep_flag:
+            sleep(5)
+
+    if not sleep_flag:
+        return
+
+    if sleep_flag:
         console_logging('error', "EC2 website is not active after 5 attempts")
+
 
 
 def upload_logs(url):
@@ -634,9 +651,68 @@ def upload_logs(url):
 
 def cloudwatch_usage():
     # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/cloudwatch.html
+    # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/cloudwatch/client/get_metric_statistics.html
+    # https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/viewing_metrics_with_cloudwatch.html
+
+    ''' 
+     https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_GetMetricStatistics.html 
+     This doc specifies that "the time stamp must be in ISO 8601 UTC format" 
+     Therfore datetime is now imported and used to get the current time in UTC format
+    '''
+
+    console_logging('info', f"Getting CloudWatch metrics for instance: {instance[0].id}")
+
     cloudwatch = boto3.client('cloudwatch')
 
+    console_logging('info', f"Allowing instance: {instance[0].id} -  to gather metrics for 60 seconds")
+    sleep(60)
 
+    # send some network traffic to the instance
+    console_logging('info', f"Sending network traffic to instance to test: {instance[0].id}")
+    test_ec2_website(sleep_flag=False)
+
+    end_time = datetime.datetime.now(datetime.UTC)
+    start_time = end_time - datetime.timedelta(seconds=60) 
+    # Get the metrics for the instance - these are adpated from the AWS documentation shjon above 
+    try:
+        response = cloudwatch.get_metric_statistics(
+            Period=60,
+            StartTime=start_time,
+            EndTime=end_time,
+            MetricName='NetworkIn',
+            Namespace='AWS/EC2',
+            Statistics=['Average'],
+            Dimensions=[
+                {
+                    'Name': 'InstanceId',
+                    'Value': instance[0].id
+                },
+            ]
+        )
+        console_logging('info', f"Network traffic coming in to instance: {response['Datapoints']}")
+    except Exception as error:
+        console_logging('error', f"Error while getting NetworkIn metrics: {error}")
+    
+    try:
+        response = cloudwatch.get_metric_statistics(
+            Period=60,
+            StartTime=start_time,
+            EndTime=end_time,
+            MetricName='CPUUtilization',
+            Namespace='AWS/EC2',
+            Statistics=['Maximum'],
+            Dimensions=[
+                {
+                    'Name': 'InstanceId',
+                    'Value': instance[0].id
+                },
+            ]
+        )
+        console_logging('info', f"The instance CPU max usage: {response['Datapoints']}")
+
+    except Exception as error:
+        console_logging('error', f"Error while getting NetworkOut metrics: {error}")
+    
 
     pass
     
@@ -664,7 +740,7 @@ def main():
     print()
     write_to_file(ec2_url_name , s3_url_name) # Core Requirement 6
     print()
-    test_ec2_website()  # Part of Additional Functionality
+    test_ec2_website(sleep_flag=True)  # Part of Additional Functionality
     print()
     upload_run_monitoring() # Core Requirement 7
     print()
@@ -678,9 +754,6 @@ def main():
         for job in cleanup_jobs:
             console_logging('info', f"Status of removal post cleanup job: {job} - {'Success' if cleanup_jobs[job] else 'Failed'}")
         print()
-
-
-
 
 
 
