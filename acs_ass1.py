@@ -214,6 +214,8 @@ def get_userdata_file():
                     curl --silent -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/public-ipv4 >> /var/www/html/index.html
                     echo "<br>Public hostname: " >> /var/www/html/index.html
                     curl --silent -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/public-hostname >> /var/www/html/index.html
+                    echo "<br>Private hostname: " >> /var/www/html/index.html
+                    curl --silent -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/local-hostname >> /var/www/html/index.html
                     echo "<br>Peter Walsh - 20098070: " >> /var/www/html/index.html
                 '''
 
