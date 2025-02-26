@@ -136,11 +136,14 @@ def get_new_ami():
     
 
 def create_ec2_instance():
+    # Function to create the EC2 instance 
+    
     console_logging('info', f"Creating \033[1mEC2 instance\033[0m with tag name: \033[1m{tag_name}\033[0m and AMI ID: \033[1m{ami_id}\033[0m")
     global instance_ip_addr
     global instance
     
-
+    #  Using the ec2 resource to create the instance 
+    # User data function is called within here and returns multi-line string to be used as user data for the instance
     try:
         instance = ec2.create_instances(
             ImageId = ami_id,
@@ -209,11 +212,15 @@ def get_userdata_file():
                     curl --silent -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/availability-zone/ >> /var/www/html/index.html
                     echo "<br>IP address: " >> /var/www/html/index.html
                     curl --silent -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/public-ipv4 >> /var/www/html/index.html
+                    echo "<br>Public hostname: " >> /var/www/html/index.html
+                    curl --silent -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/public-hostname >> /var/www/html/index.html
+                    echo "<br>Peter Walsh - 20098070: " >> /var/www/html/index.html
                 '''
 
 
 # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2/client/create_image.html
 def create_ami():
+    # Function to create the AMI from the instance created above - using the EC2 client to create the AMI
     global created_ami_id
 
     console_logging('info', f"Begining to create new AMI with tag name: {created_ami_name}")
@@ -258,12 +265,14 @@ def create_ami():
     pass
 
 # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/create_bucket.html
+# Note we are using the S3 resource to create the bucket and the S3 client to remove the public access block ^ not using S3 client to create the bucket here as shown above
 def create_s3_bucket():
+    # Function to create the S3 bucket - this is part of the core requirement 5
     console_logging('info', f"Creating \033[1mS3 bucket: {bucket_name_s3}\033[0m")
     try:
         response = s3.create_bucket(Bucket=bucket_name_s3)
         if response:
-            console_logging('info', f"S3 bucket {bucket_name_s3} created successfully")
+            console_logging('info', f"\033[1mS3 bucket {bucket_name_s3} created successfully\033[0m")
     except Exception as error:
         console_logging('error', f"Error while creating S3 bucket: {error}")
 
@@ -299,7 +308,8 @@ def create_s3_bucket():
 
 # https://boto3.amazonaws.com/v1/documentation/api/latest/guide/s3-example-static-web-host.html
 def make_s3_static():
-    console_logging('info', f"Making \033[1m{bucket_name_s3}\033[0m a static website host")
+    # Function to make the S3 bucket a static website host - this is part of the core requirement 5
+    console_logging('info', f"Making {bucket_name_s3} a static website host")
     website_configuration = {
     'ErrorDocument': {'Key': 'error.html'},
     'IndexDocument': {'Suffix': 'index.html'},
@@ -308,7 +318,7 @@ def make_s3_static():
     try:
         bucket_website = s3.BucketWebsite(bucket_name_s3)
         bucket_website.put(WebsiteConfiguration=website_configuration)
-        console_logging('info', f"{bucket_name_s3} is now a static website host")
+        console_logging('info', f"\033[1m{bucket_name_s3}\033[0m is now a static website host")
     except Exception as error:
         console_logging('error', f"Error while making {bucket_name_s3} a static website host: {error}")
     
@@ -335,13 +345,15 @@ def get_html_data():
 
 def get_image():
     # https://requests.readthedocs.io/en/latest/user/quickstart/#errors-and-exceptions - request documentation for error handling
+
+    # We send a get request to the image url and save it to a file - if the status code is not 200, we log an error and exit the program via program_error function
     console_logging('info', f"Downloading image from {img_dwl_url}")
     try:
         img_resource = requests.get(img_dwl_url)
         if img_resource.status_code != 200:
             console_logging('error', f"Error while downloading image: {img_resource.status_code}")
         elif img_resource.status_code == 200:
-            console_logging('info', f"Image downloaded successfully")
+            console_logging('info', f"\033[1mImage downloaded successfully\033[0m")
         else:
             console_logging('error', f"Error while downloading image: {img_resource.status_code}")
     except requests.exceptions.RequestException as e:
@@ -358,12 +370,14 @@ def get_image():
 
 # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/client/put_object.html
 def upload_to_s3():
+    # Function to upload the image to the S3 bucket and make it publicly available
     global object
     object = img_file_name
     file_type =  object.split(".")[1]
     object = object.split(".")[0] + '_pwalsh.' + file_type
     console_logging('info', f"Uploading image file to {bucket_name_s3}")
-
+    
+    # Here we are using the s3 client to upload the image downloaded above to the bucket created above
     try:
         with open(img_file_name, "rb") as img:
             s3_client.put_object(Bucket=bucket_name_s3, Key=object, Body=img, ContentType=f'image/{file_type}') # uploads the image file to the bucket and set the content type to image/{file_type}
@@ -421,15 +435,17 @@ def get_ipt_args():
     cleanup = False
     global wait_time
     
-    
+    # if the user has not provided any arguments, the script will default to no cleanup 
     if len(sys.argv) > 1:
         sys.argv[1] = sys.argv[1].upper() # convert to uppercase to avoid case sensitivity
+        # Arg 1 - Cleanup flag - TRUE or FALSE
         if sys.argv[1] == 'TRUE':
             cleanup = True
             console_logging('info', "\033[1mCleanup flag detected. Script will remove all resources after script completion\033[0m")
+            # Arg 2 - Wait time - time to wait before cleanup in seconds
             if len(sys.argv) > 2:
                 try:
-               
+                    # catch any errors in converting the wait time to int - if user inputs a string or float, the script will exit 
                     wait_time = int(sys.argv[2])
                 except Exception as error:
                     console_logging('info', f"Error while converting wait time to int: {error}")
@@ -522,6 +538,7 @@ def cleanup_resources():
 
 
 def program_error():
+    # this function is called when an error occurs in the script - it will cleanup resources and exit the program
     cleanup_resources()
     console_logging('error', "Starting Exit of Program due to error in script", False)
     for job in cleanup_jobs:
@@ -534,6 +551,9 @@ def write_to_file(ec2_url, s3_url):
     
     file_name = 'pwalsh-websites.txt'
     console_logging('info', f"Writing URLs to file: {file_name}")
+
+    # write the urls to the file with 'with open' to ensure the file is closed after writing
+    # if the file isnt created, it will be created automatically 
     try:
         with open(file_name, 'w') as f:
             f.write(f"EC2 URL: {ec2_url}\n")
@@ -588,6 +608,8 @@ def upload_run_monitoring():
 def test_ec2_website(sleep_flag):
     # Test if the EC2 web server is active and reachable - 
     # Doing this before the monitoring script run to ensure web server will be displayed as running and no errors encountered 
+    # This function is called twice - once with sleep_flag = True to allow the web server to start up and once with 
+    # # sleep_flag = False to just send traffic to the instance for CloudWatch metrics
     if sleep_flag:
         sleep_time = 25
         console_logging('info', f"Testing EC2 website: {instance_ip_addr} - Allowing {sleep_time} seconds for startup")
@@ -782,9 +804,9 @@ def main():
     print()
     upload_run_monitoring() # Core Requirement 7
     print()
-    upload_logs(s3_url_name) # Part of Additional Functionality
-    print()
     cloudwatch_usage() # Part of Additional Functionality
+    print()
+    upload_logs(s3_url_name) # Part of Additional Functionality
     print()
     if cleanup:
         cleanup_resources() # Part of Additional Functionality
@@ -794,7 +816,7 @@ def main():
         print()
 
 
-
+#Main function call
 if __name__ == '__main__':
     # clear the console
     subprocess.run('clear', shell=True)
