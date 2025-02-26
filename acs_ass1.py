@@ -147,6 +147,7 @@ def create_ec2_instance():
             MinCount=1,
             MaxCount=1,
             InstanceType = instance_type,
+            Monitoring={'Enabled': True},
             KeyName = key_pair_name,
             SecurityGroupIds = [sg_id],
             TagSpecifications=[
@@ -177,6 +178,14 @@ def create_ec2_instance():
     except Exception as error:
         console_logging('error', f"Error while getting instance info: {error}")
 
+    try:
+        # Enable monitoring for the instance explicitly
+        console_logging('info', "Enabling monitoring for the instance")
+        response = ec2_client.monitor_instances(InstanceIds=[instance[0].id])
+        console_logging('info', f"Instance Monitoring: {response['InstanceMonitorings'][0]['Monitoring']['State']}")
+    except Exception as error:
+        console_logging('error', f"Error while getting instance monitoring: {error}")
+    
 
     ec2_instance_web_url = f"http://{instance_ip_addr}"
     console_logging('info', f"Instance is now available at \033[1m{ec2_instance_web_url}\033[0m")
@@ -351,13 +360,13 @@ def get_image():
 def upload_to_s3():
     global object
     object = img_file_name
-    file_type = '.' + object.split(".")[1]
-    object = object.split(".")[0] + '_pwalsh' + file_type
+    file_type =  object.split(".")[1]
+    object = object.split(".")[0] + '_pwalsh.' + file_type
     console_logging('info', f"Uploading image file to {bucket_name_s3}")
 
     try:
         with open(img_file_name, "rb") as img:
-            s3_client.put_object(Bucket=bucket_name_s3, Key=object, Body=img, ContentType='image/jpeg') # uploads the image file to the bucket and set the content type to image/jpeg
+            s3_client.put_object(Bucket=bucket_name_s3, Key=object, Body=img, ContentType=f'image/{file_type}') # uploads the image file to the bucket and set the content type to image/{file_type}
             console_logging('info', f"Image file uploaded to {bucket_name_s3}")
     except Exception as error:
         console_logging('error', f"Error while uploading image: {error}")
@@ -594,6 +603,9 @@ def test_ec2_website(sleep_flag):
                 console_logging('info', "EC2 website is active and reachable")
                 if sleep_flag:
                     return
+                if not sleep_flag: # do an extra request for traffic
+                    rsp = requests.get(f"http://{instance_ip_addr}", timeout=5)  # Timeout prevents hanging
+                    
             else:
                 if sleep_flag:
                     console_logging('info', f"EC2 website is not active - Status: {rsp.status_code} - Retrying in 5 seconds")
@@ -659,60 +671,86 @@ def cloudwatch_usage():
      This doc specifies that "the time stamp must be in ISO 8601 UTC format" 
      Therfore datetime is now imported and used to get the current time in UTC format
     '''
+    
 
     console_logging('info', f"Getting CloudWatch metrics for instance: {instance[0].id}")
 
     cloudwatch = boto3.client('cloudwatch')
 
-    console_logging('info', f"Allowing instance: {instance[0].id} -  to gather metrics for 60 seconds")
-    sleep(60)
-
-    # send some network traffic to the instance
+        # send some network traffic to the instance
     console_logging('info', f"Sending network traffic to instance to test: {instance[0].id}")
     test_ec2_website(sleep_flag=False)
+    sleep_time = 180
+    console_logging('info', f"Allowing instance: {instance[0].id} -  to gather metrics for {sleep_time} seconds")
+    sleep(sleep_time)
+    end_time = datetime.datetime.now(datetime.timezone.utc)
+    start_time = end_time - datetime.timedelta(seconds=240) 
+    console_logging('info', f"Metrics will be gathered from {start_time} to {end_time}")
 
-    end_time = datetime.datetime.now(datetime.UTC)
-    start_time = end_time - datetime.timedelta(seconds=60) 
+
+    got_data = 0
+    max_attempts = 5
+    attempt_count = 0
+
     # Get the metrics for the instance - these are adpated from the AWS documentation shjon above 
-    try:
-        response = cloudwatch.get_metric_statistics(
-            Period=60,
-            StartTime=start_time,
-            EndTime=end_time,
-            MetricName='NetworkIn',
-            Namespace='AWS/EC2',
-            Statistics=['Average'],
-            Dimensions=[
-                {
-                    'Name': 'InstanceId',
-                    'Value': instance[0].id
-                },
-            ]
-        )
-        console_logging('info', f"Network traffic coming in to instance: {response['Datapoints']}")
-    except Exception as error:
-        console_logging('error', f"Error while getting NetworkIn metrics: {error}")
-    
-    try:
-        response = cloudwatch.get_metric_statistics(
-            Period=60,
-            StartTime=start_time,
-            EndTime=end_time,
-            MetricName='CPUUtilization',
-            Namespace='AWS/EC2',
-            Statistics=['Maximum'],
-            Dimensions=[
-                {
-                    'Name': 'InstanceId',
-                    'Value': instance[0].id
-                },
-            ]
-        )
-        console_logging('info', f"The instance CPU max usage: {response['Datapoints']}")
+    while attempt_count < max_attempts:
+        # found that the metrics were not always available immediately after the instance was created 
+        #  will retry max 5 times with a 5 second delay between each attempt 
+        try:
+            response = cloudwatch.get_metric_statistics(
+                Period=60,
+                StartTime=start_time,
+                EndTime=end_time,
+                MetricName='NetworkIn',
+                Namespace='AWS/EC2',
+                Statistics=['Average'],
+                Dimensions=[
+                    {
+                        'Name': 'InstanceId',
+                        'Value': instance[0].id
+                    },
+                ]
+            )
+            if response['Datapoints']:
+                console_logging('info', f"Network traffic coming in to instance: {response['Datapoints'][0]['Average']} {response['Datapoints'][0]['Unit']}")
+                got_data = got_data + 1
+            else:
+                console_logging('info', "No data points found for NetworkIn metric")
+        except Exception as error:
+            console_logging('error', f"Error while getting NetworkIn metrics: {error}")
+        
+        try:
+            response = cloudwatch.get_metric_statistics(
+                Period=60,
+                StartTime=start_time,
+                EndTime=end_time,
+                MetricName='NetworkOut',
+                Namespace='AWS/EC2',
+                Statistics=['Average'],
+                Dimensions=[
+                    {
+                        'Name': 'InstanceId',
+                        'Value': instance[0].id
+                    },
+                ]
+            )
+            if response['Datapoints']:
+                console_logging('info', f"Network traffic going out from instance: {response['Datapoints'][0]['Average']} {response['Datapoints'][0]['Unit']}")
+                got_data = got_data + 1
+            else:
+                console_logging('info', "No data points found for NetworkOut metric")
 
-    except Exception as error:
-        console_logging('error', f"Error while getting NetworkOut metrics: {error}")
-    
+        except Exception as error:
+            console_logging('error', f"Error while getting NetworkOut metrics: {error}")
+
+        if got_data == 2:
+            break
+        attempt_count += 1
+        console_logging('info', f"Retrying in 5 seconds - Attempt {attempt_count} of {max_attempts}")
+        sleep(5)
+    if not got_data:
+        console_logging('info', "No data points found for any metrics")
+        
 
     pass
     
