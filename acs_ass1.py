@@ -9,7 +9,9 @@ https://github.com/PetWalsh007/ACS_Assignment_1
 
 When running this on a linux terminal use the following command to run the script:
 
-                        python3 acs_ass1.py <cleanup_flag> <wait_time>
+                        python3 acs_ass1.py <cleanup_flag> <wait_time> 
+                        or
+                        ./acs_ass1.py <cleanup_flag> <wait_time>
                         
 where cleanup_flag is either TRUE or FALSE and wait_time is the time in seconds to wait before cleaning up resources
 
