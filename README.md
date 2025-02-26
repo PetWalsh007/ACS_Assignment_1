@@ -40,7 +40,7 @@ This repository contains the code for **Assessment 1** of Automated Cloud Servic
    - Referencing Links added in code 
 
 ## Additional Functionality
-1. **Auto Cleanup**
+   - Auto Cleanup
    - Added dynamic cmd line argument handling to check for cmd args to allow for auto cleanup of tests
    - Cleanup runs automatically on error in program with status output for each cleaning job
    - Uploads of log file to bucket
