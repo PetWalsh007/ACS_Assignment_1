@@ -13,7 +13,7 @@ This repository contains the code for **Assessment 1** of Automated Cloud Servic
    - Security Group setup  
    - Correct Key Pair assignment  
    - Availability Zone: `us-east-1`  
-   - Instance Type: `t2.micro`  
+   - Instance Type: `t2.nano`  
 3. **User Data Execution**
    - Applies patches  
    - Configures a web server  
